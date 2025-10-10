@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>造物主 4.0 | AI 物理交互课堂</title>
+    <meta name="description" content="造物主 4.0：AI 生成物理交互与运动，服务教学与课堂互动。" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet" />
+    <style>
+        :root {
+            --bg-0: #0a0a0a;
+            --bg-1: #0f0f12;
+            --text-0: #ffffff;
+            --text-1: #cfd3dc;
+            --glass: rgba(255, 255, 255, 0.06);
+            --glass-strong: rgba(255, 255, 255, 0.12);
+            --line: rgba(255, 255, 255, 0.08);
+            --brand-acc: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            color: var(--text-0);
+            background: radial-gradient(1200px 800px at 80% -10%, #1b1e24 0%, var(--bg-1) 40%, var(--bg-0) 100%);
+            overflow-x: hidden;
+        }
+
+        /* 背景网格与细腻噪声 */
+        .bg-grid::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(var(--line) 1px, transparent 1px),
+                linear-gradient(90deg, var(--line) 1px, transparent 1px);
+            background-size: 40px 40px, 40px 40px;
+            mask-image: radial-gradient(80% 60% at 50% 20%, #000 60%, transparent 100%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .noise::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23n)" opacity="0.035"/></svg>') repeat;
+            mix-blend-mode: soft-light;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* 顶部导航 */
+        .nav {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            width: 100%;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.05));
+            border-bottom: 1px solid var(--line);
+        }
+
+        .nav-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 18px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            letter-spacing: .5px;
+        }
+
+        .brand-mark {
+            width: 36px;
+            height: 36px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.05));
+            border: 1px solid var(--line);
+            box-shadow: inset 0 0 24px rgba(255, 255, 255, 0.08), 0 8px 24px rgba(0, 0, 0, 0.5);
+        }
+
+        .brand-name {
+            font-weight: 800;
+            font-size: 18px;
+            color: var(--brand-acc);
+        }
+
+        .brand-sub {
+            color: var(--text-1);
+            font-size: 12px;
+        }
+
+        .nav-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        /* 玻璃按钮 + 交互动画 */
+        .btn {
+            position: relative;
+            appearance: none;
+            border: 1px solid var(--line);
+            color: var(--text-0);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border-radius: 12px;
+            padding: 12px 18px;
+            font-weight: 600;
+            letter-spacing: .3px;
+            cursor: pointer;
+            overflow: hidden;
+            transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), inset 0 0 40px rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.18);
+        }
+
+        .btn:active {
+            transform: translateY(0) scale(0.98);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55) inset;
+        }
+
+        .btn .glow {
+            position: absolute;
+            inset: -1px;
+            border-radius: 12px;
+            pointer-events: none;
+            background: radial-gradient(500px 140px at var(--x, 50%) var(--y, 50%), rgba(255, 255, 255, 0.18), transparent 40%);
+            opacity: 0;
+            transition: opacity .2s ease;
+        }
+
+        .btn:hover .glow {
+            opacity: 1;
+        }
+
+        .btn-primary {
+            color: #111;
+            background: linear-gradient(180deg, #fff, #d9d9d9);
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 10px 30px rgba(255, 255, 255, 0.15), inset 0 0 30px rgba(255, 255, 255, 0.5);
+        }
+
+        /* 英雄区 */
+        .hero {
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 90px 20px 40px 20px;
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 40px;
+        }
+
+        .hero-title {
+            font-size: clamp(36px, 5vw, 64px);
+            line-height: 1.05;
+            margin: 0 0 18px 0;
+            letter-spacing: .5px;
+            text-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+        }
+
+        .hero-desc {
+            color: var(--text-1);
+            font-size: 16px;
+            line-height: 1.75;
+            margin-bottom: 28px;
+        }
+
+        .hero-ctas {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .hero-card {
+            align-self: center;
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            background: linear-gradient(180deg, var(--glass-strong), var(--glass));
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            padding: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), inset 0 0 80px rgba(255, 255, 255, 0.04);
+        }
+
+        .hero-metric {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        .chip {
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 10px 12px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+            font-size: 12px;
+            color: var(--text-1);
+        }
+
+        /* 功能区卡片 */
+        .section {
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            margin: 10px auto 80px;
+            padding: 0 20px;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+        }
+
+        .card {
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 18px;
+            min-height: 160px;
+            transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(255, 255, 255, 0.18);
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+        }
+
+        .card h3 {
+            margin: 0 0 8px;
+            font-size: 16px;
+            color: var(--brand-acc);
+        }
+
+        .card p {
+            margin: 0;
+            color: var(--text-1);
+            line-height: 1.7;
+            font-size: 14px;
+        }
+
+        /* 页脚 */
+        .footer {
+            border-top: 1px solid var(--line);
+            padding: 24px 20px;
+            color: var(--text-1);
+            text-align: center;
+        }
+
+        /* 响应式 */
+        @media (max-width: 980px) {
+            .hero {
+                grid-template-columns: 1fr;
+                padding-top: 70px;
+            }
+
+            .hero-card {
+                order: -1;
+            }
+        }
+
+        /*邀请码*/
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-content {
+            background: linear-gradient(180deg, var(--glass-strong), var(--glass));
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 32px;
+            width: 380px;
+            max-width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+
+        .invite-code-input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 14px;
+            color: var(--text-0);
+            font-size: 16px;
+            margin: 20px 0;
+            transition: 0.2s ease;
+        }
+
+        .invite-code-input:focus {
+            border-color: rgba(255, 255, 255, 0.3);
+            outline: none;
+        }
+
+        .error-message {
+            color: #ff5555;
+            font-size: 14px;
+            height: 20px;
+            margin-top: -10px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .error-message.show {
+            opacity: 1;
+        }
+
+        /* 视频容器新样式 */
+        .modal-content video {
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
+        }
+
+        /* 控制栏深色适配 */
+        video::-webkit-media-controls-enclosure {
+            background: rgba(0, 0, 0, 0.7) !important;
+            border-radius: 0 0 12px 12px;
+        }
+
+        /* 大屏隐藏滚动条 */
+        @media (min-width: 768px) {
+            video::-webkit-media-controls-enclosure {
+                margin-right: -6px;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-grid noise">
+    <header class="nav">
+        <div class="nav-inner">
+            <div class="brand">
+                <div class="brand-mark">
+                    <img src="img/logo.jpg" alt="Logo" style="width: 100%; height: 100%; border-radius: 12px; object-fit: cover;">
+                </div>
+                <div>
+                    <div class="brand-name">造物主 4.0</div>
+                    <div class="brand-sub">AI 物理交互课堂</div>
+                </div>
+            </div>
+            <div class="nav-actions">
+                <button class="btn" id="btn-platform" onclick="window.location.href='platform.html'">平台<span class="glow"></span></button>
+                <button class="btn" id="btn-demo">演示<span class="glow"></span></button>
+                <button class="btn btn-primary" id="btn-start">立即体验<span class="glow"></span></button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div>
+                <h1 class="hero-title">用 AI 生成物理交互与运动，点亮每一堂课</h1>
+                <p class="hero-desc">造物主 4.0 将 AI 与物理引擎结合，帮助老师与学生以更直观的方式构建、演示与探索力学世界。黑白极简，玻璃雾面，低调而有力量。</p>
+                <div class="hero-ctas">
+                    <button class="btn btn-primary" id="cta-start">开始创作<span class="glow"></span></button>
+                    <button class="btn" id="cta-video">观看视频<span class="glow"></span></button>
+                </div>
+                <div class="hero-metric">
+                    <div class="chip">物理场景一键生成</div>
+                    <div class="chip">课堂即时互动</div>
+                    <div class="chip">跨设备无门槛</div>
+                </div>
+            </div>
+            <div class="hero-card">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+                    <div>
+                        <div style="font-weight:700; color:var(--brand-acc);">实时演示</div>
+                        <div style="color:var(--text-1); font-size:12px;">拖拽、碰撞、重力与矢量</div>
+                    </div>
+
+                </div>
+                <div
+                    style="margin-top:14px; border:1px solid var(--line); border-radius:14px; height:220px; position:relative; overflow:hidden; background:linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));">
+                    <canvas id="preview-canvas" width="640" height="360"
+                        style="width:100%; height:100%; display:block;"></canvas>
+                    <div style="position:absolute; bottom:8px; right:8px; display:flex; gap:8px;">
+                        <button class="btn" id="btn-slow">慢速<span class="glow"></span></button>
+                        <button class="btn" id="btn-play">播放<span class="glow"></span></button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="cards">
+                <div class="card">
+                    <h3>AI 场景生成</h3>
+                    <p>用自然语言描述，即刻生成可交互的物理世界：力、场、碰撞、约束与合力。</p>
+                </div>
+                <div class="card">
+                    <h3>课堂互动</h3>
+                    <p>教师端一键推送到学生端，实时同步拖拽、标注、测量与提问。</p>
+                </div>
+                <div class="card">
+                    <h3>可视化矢量</h3>
+                    <p>速度、加速度、受力矢量随时间变化，支持数据导出与回放。</p>
+                </div>
+                <div class="card">
+                    <h3>低门槛接入</h3>
+                    <p>纯网页端，无需安装；兼容触控屏与投影，开箱即用。</p>
+                </div>
+            </div>
+        </section>
+        <!-- 在body结束前追加模态框结构 -->
+        <div class="modal-overlay" id="inviteModal">
+            <div class="modal-content">
+                <div style="font-size: 20px; font-weight: 600; margin-bottom: 8px;">访问授权验证</div>
+                <div style="color: var(--text-1); font-size: 14px; line-height: 1.5;">
+                    请输入由造物主官方提供的邀请码以继续访问
+                </div>
+                <input type="text" class="invite-code-input" placeholder="输入6位邀请码" maxlength="6" id="codeInput">
+                <div class="error-message" id="errorMessage"></div>
+                <div style="display: flex; gap: 12px;">
+                    <button class="btn" style="flex:1;" id="cancelBtn">取消</button>
+                    <button class="btn btn-primary" style="flex:1;" id="confirmBtn">验证</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="videoModal">
+            <div class="modal-content" style="max-width: min(90vw, 1200px); padding: 24px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div style="font-size: 24px; font-weight: 600;" id="videoTitle">视频演示</div>
+                    <button class="btn" id="closeVideoBtn"
+                        style="width: 40px; height: 40px; padding: 0; font-size: 24px; line-height: 1;">×</button>
+                </div>
+                <div style="position: relative; padding-top: 56.25%; /* 16:9 比例 */">
+                    <video id="demoVideo" controls style="position: absolute; top: 0; left: 0; 
+                          width: 100%; height: 100%; 
+                          border-radius: 14px; border: 1px solid var(--line);
+                          background: var(--bg-1);">
+                    </video>
+                </div>
+            </div>
+
+    </main>
+
+    <footer class="footer">
+        <div>© 2025 造物主 | 为教学而生的 AI 物理交互平台</div>
+    </footer>
+
+    <script>
+        // 按钮光标跟随光斑
+        document.querySelectorAll('.btn').forEach(function (button) {
+            button.addEventListener('pointermove', function (e) {
+                const rect = button.getBoundingClientRect();
+                const x = e.clientX - rect.left; const y = e.clientY - rect.top;
+                button.style.setProperty('--x', x + 'px');
+                button.style.setProperty('--y', y + 'px');
+            });
+        });
+
+        // 预览区：简易物理小动画（无第三方库）
+        (function () {
+            const canvas = document.getElementById('preview-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            let dpr = Math.max(1, window.devicePixelRatio || 1);
+            function resize() {
+                const w = canvas.clientWidth; const h = canvas.clientHeight;
+                canvas.width = Math.floor(w * dpr); canvas.height = Math.floor(h * dpr);
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            }
+            resize();
+            window.addEventListener('resize', resize);
+
+            let balls = [
+                { x: 60, y: 40, vx: 1.2, vy: 0, r: 10 },
+                { x: 120, y: 60, vx: -0.6, vy: 0, r: 12 },
+                { x: 180, y: 20, vx: 0.8, vy: 0, r: 8 }
+            ];
+            let gravity = 0.06; let playing = true; let slow = false;
+
+            function step() {
+                const cw = canvas.clientWidth; const ch = canvas.clientHeight;
+                ctx.clearRect(0, 0, cw, ch);
+                // 背景细网格
+                ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1;
+                for (let i = 0; i < cw; i += 20) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, ch); ctx.stroke(); }
+                for (let j = 0; j < ch; j += 20) { ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(cw, j); ctx.stroke(); }
+                // 运动体 + 重力矢量
+                balls.forEach(b => {
+                    b.vy += gravity * (slow ? 0.35 : 1);
+                    b.x += b.vx; b.y += b.vy;
+                    if (b.y + b.r > ch) { b.y = ch - b.r; b.vy *= -0.7; }
+                    if (b.x - b.r < 0 || b.x + b.r > cw) { b.vx *= -1; }
+                    ctx.beginPath();
+                    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+                    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2); ctx.fill();
+                    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+                    ctx.beginPath(); ctx.moveTo(b.x, b.y);
+                    ctx.lineTo(b.x, b.y + 28); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(b.x, b.y + 28); ctx.lineTo(b.x - 4, b.y + 22); ctx.lineTo(b.x + 4, b.y + 22); ctx.closePath(); ctx.fill();
+                });
+            }
+            function loop() { if (playing) step(); requestAnimationFrame(loop); }
+            loop();
+
+            document.getElementById('btn-play').addEventListener('click', function () {
+                playing = !playing; this.textContent = playing ? '暂停' : '播放';
+            });
+            document.getElementById('btn-slow').addEventListener('click', function () {
+                slow = !slow; this.textContent = slow ? '常速' : '慢速';
+            });
+        })();
+
+        // 顶部 CTA 交互
+        // document.getElementById('btn-start').addEventListener('click', function () {
+        //     window.location.href = '3.html';
+        // });
+        document.getElementById('btn-demo').addEventListener('click', function () {
+            document.getElementById('cta-video')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+        document.getElementById('cta-start').addEventListener('click', function () {
+            showInviteModal();
+        });
+
+
+        // 在原有script内追加以下逻辑
+        // 邀请码配置（用户可自行修改）
+
+
+        // 显示模态框
+        function showInviteModal() {
+            const modal = document.getElementById('inviteModal');
+            modal.classList.add('active');
+            document.getElementById('codeInput').focus();
+        }
+
+        // 隐藏模态框
+        function hideInviteModal() {
+            const modal = document.getElementById('inviteModal');
+            modal.classList.remove('active');
+            document.getElementById('errorMessage').classList.remove('show');
+        }
+
+        // 原立即体验按钮事件修改
+        document.getElementById('btn-start').addEventListener('click', function (e) {
+            e.preventDefault();
+            showInviteModal();
+        });
+
+        // 取消按钮事件
+        document.getElementById('cancelBtn').addEventListener('click', hideInviteModal);
+
+        // 验证按钮事件
+        // 添加容错处理
+        // 确保在脚本最顶部定义（不要嵌套在函数中）
+        const validCodes = ["CREATO", "PHYSICS", "EDU666"];
+
+        document.getElementById('confirmBtn').addEventListener('click', function () {
+            // 规范化输入
+            const input = document.getElementById('codeInput').value.trim().toUpperCase();
+            const errorEl = document.getElementById('errorMessage');
+
+            // 空值检查
+            if (!input) {
+                errorEl.textContent = "请输入邀请码";
+                errorEl.classList.add('show');
+                return;
+            }
+
+            // 安全跳转
+            if (validCodes.includes(input)) {
+                errorEl.classList.remove('show');
+                window.location.href = encodeURIComponent('inter.html');
+            } else {
+                // 友好错误提示
+                errorEl.textContent = `验证码无效，有效格式如：${validCodes.join(', ')}`;
+                errorEl.classList.add('show');
+                console.warn('失败输入:', input);
+            }
+        });
+
+
+
+        // 回车键支持
+        document.getElementById('codeInput').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                document.getElementById('confirmBtn').click();
+            }
+        });
+
+
+
+
+
+        // 视频配置
+        const videoSources = {
+            demo: {
+                title: '产品功能演示',
+                src: '20251002-0536-00.1755400.mp4'
+            },
+            video: {
+                title: '教学案例视频',
+                src: 'path/to/tutorial-video.mp4'
+            }
+        };
+        // 获取元素
+        const videoModal = document.getElementById('videoModal');
+        const demoVideo = document.getElementById('demoVideo');
+        const videoTitle = document.getElementById('videoTitle');
+        // 绑定按钮事件
+        document.getElementById('cta-video').addEventListener('click', () => showVideo('video'));
+        document.getElementById('btn-demo').addEventListener('click', () => showVideo('demo'));
+        // 显示视频模态框
+        function showVideo(type) {
+            const config = videoSources[type];
+            videoTitle.textContent = config.title;
+            demoVideo.src = config.src;
+            videoModal.classList.add('active');
+            demoVideo.play();
+        }
+        // 关闭视频模态框
+        document.getElementById('closeVideoBtn').addEventListener('click', () => {
+            videoModal.classList.remove('active');
+            demoVideo.pause();
+        });
+        // 点击模态框外部关闭
+        videoModal.addEventListener('click', (e) => {
+            if (e.target === videoModal) {
+                videoModal.classList.remove('active');
+                demoVideo.pause();
+            }
+        });
+
+    </script>
+</body>
+
+</html>

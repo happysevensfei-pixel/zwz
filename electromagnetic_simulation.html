@@ -1,0 +1,1899 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>电磁场粒子运动模拟器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: black;
+            overflow: hidden;
+            height: 100%;
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+        }
+
+        #canvas {
+            display: block;
+            background-color: black;
+            cursor: crosshair;
+        }
+
+        /* 悬浮窗样式 - 与inter.html一致 */
+        .control-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 320px;
+            min-height: 400px;
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(20, 20, 20, 0.8));
+            backdrop-filter: blur(25px) saturate(1.5);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow:
+                0 20px 40px rgba(0, 0, 0, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.05),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            opacity: 1;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            cursor: move;
+            user-select: none;
+        }
+
+        .control-panel h3 {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 16px;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: linear-gradient(45deg, #fff, #aaa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .control-group {
+            margin-bottom: 18px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #cccccc;
+            font-weight: 500;
+        }
+
+        .control-group input,
+        .control-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            font-size: 14px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .control-group input:focus,
+        .control-group select:focus {
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        /* 方向选择器 */
+        .direction-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .direction-btn {
+            padding: 8px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            cursor: pointer;
+            text-align: center;
+            font-size: 12px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .direction-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .direction-btn.active {
+            background: rgba(79, 195, 247, 0.3);
+            border-color: #4fc3f7;
+            box-shadow: 0 0 10px rgba(79, 195, 247, 0.3);
+        }
+
+        /* 初速度控制 */
+        .velocity-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .velocity-controls input {
+            text-align: center;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            width: 100%;
+            height: 36px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: rgba(255, 255, 255, 0.9);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 12px;
+            font-weight: 500;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:hover {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px) scale(1.02);
+            box-shadow:
+                0 8px 20px rgba(0, 0, 0, 0.3),
+                0 0 0 1px rgba(255, 255, 255, 0.1);
+        }
+
+        .btn:active {
+            transform: translateY(0) scale(0.98);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+
+        /* 关闭按钮 */
+        .close-button {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.7);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(10px);
+        }
+
+        .close-button:hover {
+            background: linear-gradient(135deg, rgba(255, 100, 100, 0.3), rgba(255, 50, 50, 0.2));
+            border-color: rgba(255, 100, 100, 0.3);
+            color: rgba(255, 255, 255, 1);
+            transform: scale(1.1) rotate(90deg);
+            box-shadow: 0 4px 12px rgba(255, 100, 100, 0.3);
+        }
+
+        /* 拖拽相关样式 */
+        .control-panel.dragging {
+            cursor: move;
+            user-select: none;
+            transition: none;
+        }
+
+        .control-panel.dragging * {
+            pointer-events: none;
+        }
+
+        .control-panel.dragging .close-button {
+            pointer-events: auto;
+        }
+
+        .control-panel .drag-handle {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 30px;
+            cursor: move;
+            z-index: 10;
+            border-radius: 16px 16px 0 0;
+        }
+
+        .control-panel .drag-handle:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* 拖拽时的视觉反馈 */
+        .control-panel.dragging {
+            box-shadow:
+                0 25px 50px rgba(0, 0, 0, 0.5),
+                0 0 0 1px rgba(255, 255, 255, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+
+        /* 右下角跳转按钮 */
+        #centerButton {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, rgba(0, 150, 255, 0.8), rgba(0, 100, 200, 0.6));
+            backdrop-filter: blur(15px) saturate(1.2);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow:
+                0 8px 25px rgba(0, 150, 255, 0.3),
+                0 0 0 1px rgba(255, 255, 255, 0.1);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #centerButton:hover {
+            transform: scale(1.1);
+            background: linear-gradient(135deg, rgba(0, 200, 255, 0.9), rgba(0, 150, 255, 0.7));
+            box-shadow:
+                0 12px 35px rgba(0, 150, 255, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.2);
+        }
+
+        #centerButton:active {
+            transform: scale(0.95);
+        }
+
+        /* 右下角坐标系按钮 */
+        #coordinateButton {
+            position: fixed;
+            bottom: 20px;
+            right: 90px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, rgba(100, 100, 100, 0.8), rgba(60, 60, 60, 0.6));
+            backdrop-filter: blur(15px) saturate(1.2);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow:
+                0 8px 25px rgba(100, 100, 100, 0.3),
+                0 0 0 1px rgba(255, 255, 255, 0.1);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #coordinateButton:hover {
+            transform: scale(1.1);
+            background: linear-gradient(135deg, rgba(120, 120, 120, 0.9), rgba(80, 80, 80, 0.7));
+            box-shadow:
+                0 12px 35px rgba(100, 100, 100, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.2);
+        }
+
+        #coordinateButton:active {
+            transform: scale(0.95);
+        }
+
+        #coordinateButton.active {
+            background: linear-gradient(135deg, rgba(0, 150, 255, 0.8), rgba(0, 100, 200, 0.6));
+            border-color: rgba(0, 150, 255, 0.3);
+            box-shadow:
+                0 8px 25px rgba(0, 150, 255, 0.3),
+                0 0 0 1px rgba(0, 150, 255, 0.2);
+        }
+
+        /* 毛玻璃提示信息 */
+        .instructions {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(20px) saturate(1.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            color: white;
+            font-size: 13px;
+            max-width: 320px;
+            z-index: 1000;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .instructions h4 {
+            color: #ffffff;
+            margin-bottom: 12px;
+            font-weight: 300;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+
+        .instructions ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .instructions li {
+            margin-bottom: 6px;
+            color: #cccccc;
+        }
+
+        /* 拖拽预览 */
+        .drag-preview {
+            position: absolute;
+            border: 2px dashed rgba(255, 255, 255, 0.6);
+            background: rgba(255, 255, 255, 0.05);
+            pointer-events: none;
+            z-index: 999;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+
+        /* 粒子信息显示 */
+        .particle-info {
+            position: fixed;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(20px) saturate(1.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            color: white;
+            font-size: 13px;
+            max-width: 220px;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .particle-info.show {
+            display: block;
+        }
+
+        .particle-info h4 {
+            color: #ffffff;
+            margin-bottom: 12px;
+            font-weight: 300;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+
+        /* 数值显示 */
+        .value-display {
+            color: #4fc3f7;
+            font-weight: 600;
+        }
+
+        /* 彩虹轨迹样式 */
+        .trail {
+            position: absolute;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .control-panel {
+                min-width: 280px;
+                padding: 20px;
+            }
+
+            .mode-indicator {
+                right: 10px;
+                top: 10px;
+                padding: 12px 16px;
+                font-size: 12px;
+            }
+
+            .instructions {
+                bottom: 10px;
+                left: 10px;
+                max-width: 280px;
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="canvas"></canvas>
+
+    <!-- 中央跳转按钮 -->
+    <button id="centerButton" onclick="window.location.href='inter.html'">跳转</button>
+
+    <!-- 右下角坐标系按钮 -->
+    <button id="coordinateButton" onclick="toggleCoordinateSystem()">📐</button>
+
+    <!-- 控制面板 -->
+    <div class="control-panel" id="controlPanel">
+        <div class="drag-handle"></div>
+        <button class="close-button" onclick="document.getElementById('controlPanel').style.display='none'">×</button>
+        <h3>电磁场粒子模拟器</h3>
+
+        <div class="control-group">
+            <label>当前模式:</label>
+            <select id="modeSelect">
+                <option value="electric">电场模式</option>
+                <option value="magnetic">磁场模式</option>
+                <option value="particle">粒子模式</option>
+            </select>
+        </div>
+
+        <div class="control-group" id="fieldControls">
+            <label>场强度: <span class="value-display" id="fieldStrengthValue">50</span></label>
+            <input type="range" id="fieldStrength" min="-100" max="100" value="50">
+
+            <label style="margin-top: 15px;">场形状:</label>
+            <div class="direction-selector" id="shapeSelector">
+                <div class="direction-btn active" data-shape="rectangle">⬜ 矩形</div>
+                <div class="direction-btn" data-shape="circle">⭕ 圆形</div>
+                <div class="direction-btn" data-shape="triangle">🔺 三角形</div>
+                <div class="direction-btn" data-shape="semicircle">🌙 半圆</div>
+            </div>
+
+            <label style="margin-top: 15px;">场方向:</label>
+            <div class="direction-selector" id="fieldDirectionSelector">
+                <div class="direction-btn" data-direction="right">→ 右</div>
+                <div class="direction-btn" data-direction="left">← 左</div>
+                <div class="direction-btn" data-direction="up">↑ 上</div>
+                <div class="direction-btn active" data-direction="down">↓ 下</div>
+            </div>
+            <div class="direction-selector" id="magneticDirectionSelector" style="display: none; margin-top: 10px;">
+                <div class="direction-btn active" data-magnetic-direction="out">⊙ 穿出屏幕</div>
+                <div class="direction-btn" data-magnetic-direction="in">⊗ 进入屏幕</div>
+            </div>
+
+            <label style="margin-top: 15px;">SVG导入:</label>
+            <input type="file" id="svgFileInput" accept=".svg" style="display: none;">
+            <button class="btn" onclick="document.getElementById('svgFileInput').click()">📁 导入SVG</button>
+        </div>
+
+        <div class="control-group" id="particleControls" style="display: none;">
+            <label>粒子质量:</label>
+            <input type="number" id="particleMass" value="1" min="0.1" max="10" step="0.1">
+
+            <label style="margin-top: 10px;">电荷量:</label>
+            <input type="number" id="particleCharge" value="1" min="-10" max="10" step="0.1">
+
+            <label style="margin-top: 15px;">初速度大小:</label>
+            <input type="number" id="initialSpeed" value="0" step="0.1" min="0">
+
+            <label style="margin-top: 15px;">速度角度(度):</label>
+            <input type="number" id="initialAngle" value="90" min="0" max="360" step="1">
+
+            <div class="velocity-preview" style="margin-top: 15px; text-align: center;">
+                <div
+                    style="display: inline-block; padding: 8px; border-radius: 8px; background: rgba(255,255,255,0.1);">
+                    <span id="velocityVectorDisplay">→ 0°</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="control-group" id="gravityControls">
+            <label>重力强度: <span class="value-display" id="gravityValue">0</span></label>
+            <input type="range" id="gravityStrength" min="0" max="100" value="0">
+
+            <label style="margin-top: 15px;">重力方向:</label>
+            <div class="direction-selector">
+                <div class="direction-btn" data-gravity-direction="right">→ 右</div>
+                <div class="direction-btn" data-gravity-direction="left">← 左</div>
+                <div class="direction-btn" data-gravity-direction="up">↑ 上</div>
+                <div class="direction-btn active" data-gravity-direction="down">↓ 下</div>
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button class="btn btn-success" id="startBtn">开始模拟</button>
+            <button class="btn btn-secondary" id="pauseBtn">暂停</button>
+            <button class="btn btn-primary" id="resetBtn">重置</button>
+        </div>
+    </div>
+
+
+
+
+    <!-- 粒子信息 -->
+    <div class="particle-info" id="particleInfo">
+        <h4>粒子信息</h4>
+        <div id="particleDetails"></div>
+    </div>
+
+    <!-- 拖拽预览 -->
+    <div class="drag-preview" id="dragPreview"></div>
+
+
+    <script>
+        class ElectromagneticSimulation {
+            constructor() {
+                this.canvas = document.getElementById('canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.setupCanvas();
+
+                // 模拟状态
+                this.isRunning = false;
+                this.isPaused = false;
+                this.mode = 'electric'; // electric, magnetic, particle
+
+                // 物理对象
+                this.fields = []; // 电场和磁场
+                this.particles = []; // 粒子
+                this.trails = []; // 轨迹
+
+                // 鼠标状态
+                this.isDragging = false;
+                this.dragStart = { x: 0, y: 0 };
+                this.dragEnd = { x: 0, y: 0 };
+                this.selectedField = null;
+
+                // 当前场方向
+                this.currentFieldDirection = { x: 0, y: 0 }; // 默认向下
+                this.currentVelocityDirection = { x: 0, y: 0 }; // 默认向下
+                this.currentMagneticDirection = 'out'; // 默认穿出屏幕
+                this.currentGravityDirection = { x: 0, y: 0 }; // 默认向下
+                this.currentShape = 'rectangle'; // 默认矩形
+                this.showCoordinateSystem = false; // 坐标系显示状态
+
+                // 动画
+                this.animationId = null;
+                this.lastTime = 0;
+
+                this.initEventListeners();
+                this.initDragFunctionality();
+                this.startAnimation();
+            }
+
+            setupCanvas() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+
+                window.addEventListener('resize', () => {
+                    this.canvas.width = window.innerWidth;
+                    this.canvas.height = window.innerHeight;
+                });
+            }
+
+            initEventListeners() {
+                // 模式切换
+                document.getElementById('modeSelect').addEventListener('change', (e) => {
+                    this.mode = e.target.value;
+                    this.updateModeIndicator();
+                    this.toggleControls();
+                });
+
+                // 场强度控制
+                document.getElementById('fieldStrength').addEventListener('input', (e) => {
+                    document.getElementById('fieldStrengthValue').textContent = e.target.value;
+                });
+
+                // 重力强度控制
+                document.getElementById('gravityStrength').addEventListener('input', (e) => {
+                    document.getElementById('gravityValue').textContent = e.target.value;
+                });
+
+                // 场方向选择
+                document.querySelectorAll('[data-direction]').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelectorAll('[data-direction]').forEach(b => b.classList.remove('active'));
+                        e.target.classList.add('active');
+
+                        const direction = e.target.dataset.direction;
+                        this.currentFieldDirection = this.getDirectionVector(direction);
+                    });
+                });
+
+                // 磁场方向选择
+                document.querySelectorAll('[data-magnetic-direction]').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelectorAll('[data-magnetic-direction]').forEach(b => b.classList.remove('active'));
+                        e.target.classList.add('active');
+
+                        this.currentMagneticDirection = e.target.dataset.magneticDirection;
+                    });
+                });
+
+                // 形状选择
+                document.querySelectorAll('[data-shape]').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelectorAll('[data-shape]').forEach(b => b.classList.remove('active'));
+                        e.target.classList.add('active');
+
+                        this.currentShape = e.target.dataset.shape;
+                    });
+                });
+
+                // SVG文件导入
+                document.getElementById('svgFileInput').addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        this.loadSVGShape(file);
+                    }
+                });
+
+                // 粒子速度方向选择
+                document.querySelectorAll('[data-velocity-direction]').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelectorAll('[data-velocity-direction]').forEach(b => b.classList.remove('active'));
+                        e.target.classList.add('active');
+
+                        const direction = e.target.dataset.velocityDirection;
+                        this.currentVelocityDirection = this.getDirectionVector(direction);
+                    });
+                });
+
+                // 重力方向选择
+                document.querySelectorAll('[data-gravity-direction]').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        document.querySelectorAll('[data-gravity-direction]').forEach(b => b.classList.remove('active'));
+                        e.target.classList.add('active');
+
+                        const direction = e.target.dataset.gravityDirection;
+                        this.currentGravityDirection = this.getDirectionVector(direction);
+                    });
+                });
+
+                // 按钮事件
+                document.getElementById('startBtn').addEventListener('click', () => this.startSimulation());
+                document.getElementById('pauseBtn').addEventListener('click', () => this.pauseSimulation());
+                document.getElementById('resetBtn').addEventListener('click', () => this.resetSimulation());
+
+                // 鼠标事件
+                this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
+                this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+                this.canvas.addEventListener('mouseup', (e) => this.handleMouseUp(e));
+                this.canvas.addEventListener('dblclick', (e) => this.handleDoubleClick(e));
+
+
+                // 初始化
+                this.updateModeIndicator();
+                this.toggleControls();
+            }
+
+            initDragFunctionality() {
+                const panel = document.getElementById('controlPanel');
+                let isDragging = false;
+                let startX, startY, startLeft, startTop;
+
+                panel.addEventListener('mousedown', (e) => {
+                    if (e.target.classList.contains('drag-handle') || e.target === panel) {
+                        isDragging = true;
+                        panel.classList.add('dragging');
+
+                        const rect = panel.getBoundingClientRect();
+                        startX = e.clientX;
+                        startY = e.clientY;
+                        startLeft = rect.left;
+                        startTop = rect.top;
+
+                        e.preventDefault();
+                    }
+                });
+
+                document.addEventListener('mousemove', (e) => {
+                    if (isDragging) {
+                        const deltaX = e.clientX - startX;
+                        const deltaY = e.clientY - startY;
+
+                        panel.style.left = (startLeft + deltaX) + 'px';
+                        panel.style.top = (startTop + deltaY) + 'px';
+                        panel.style.transform = 'none';
+                    }
+                });
+
+                document.addEventListener('mouseup', () => {
+                    if (isDragging) {
+                        isDragging = false;
+                        panel.classList.remove('dragging');
+                    }
+                });
+            }
+
+            getDirectionVector(direction) {
+                const vectors = {
+                    'right': { x: 1, y: 0 },
+                    'left': { x: -1, y: 0 },
+                    'up': { x: 0, y: -1 },
+                    'down': { x: 0, y: 1 }
+                };
+                return vectors[direction] || { x: 0, y: 1 };
+            }
+
+            updateModeIndicator() {
+                // 模式指示器已移除，使用悬浮窗内的选择器
+            }
+
+            toggleControls() {
+                const fieldControls = document.getElementById('fieldControls');
+                const particleControls = document.getElementById('particleControls');
+                const fieldDirectionSelector = document.getElementById('fieldDirectionSelector');
+                const magneticDirectionSelector = document.getElementById('magneticDirectionSelector');
+
+                if (this.mode === 'particle') {
+                    fieldControls.style.display = 'none';
+                    particleControls.style.display = 'block';
+                } else {
+                    fieldControls.style.display = 'block';
+                    particleControls.style.display = 'none';
+
+                    // 显示对应的方向选择器
+                    if (this.mode === 'electric') {
+                        fieldDirectionSelector.style.display = 'grid';
+                        magneticDirectionSelector.style.display = 'none';
+                    } else if (this.mode === 'magnetic') {
+                        fieldDirectionSelector.style.display = 'none';
+                        magneticDirectionSelector.style.display = 'grid';
+                    }
+                }
+            }
+
+            handleMouseDown(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                if (this.mode === 'particle') return;
+
+                // 检查是否点击在现有场上
+                this.selectedField = this.getFieldAt(x, y);
+
+                if (this.selectedField) {
+                    // 开始移动场
+                    this.isDragging = true;
+                    this.dragStart = { x, y };
+                } else {
+                    // 开始创建新场
+                    this.isDragging = true;
+                    this.dragStart = { x, y };
+                    this.dragEnd = { x, y };
+                }
+            }
+
+            handleMouseMove(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                if (this.isDragging) {
+                    if (this.selectedField) {
+                        // 移动现有场
+                        const dx = x - this.dragStart.x;
+                        const dy = y - this.dragStart.y;
+
+                        this.selectedField.x += dx;
+                        this.selectedField.y += dy;
+                        this.selectedField.endX += dx;
+                        this.selectedField.endY += dy;
+
+                        this.dragStart = { x, y };
+                    } else {
+                        // 更新拖拽预览
+                        this.dragEnd = { x, y };
+                        this.updateDragPreview();
+                    }
+                }
+            }
+
+            handleMouseUp(e) {
+                if (!this.isDragging) return;
+
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                if (this.selectedField) {
+                    // 完成移动场
+                    this.selectedField = null;
+                } else {
+                    // 创建新场
+                    this.dragEnd = { x, y };
+                    const width = Math.abs(this.dragEnd.x - this.dragStart.x);
+                    const height = Math.abs(this.dragEnd.y - this.dragStart.y);
+
+                    if (width > 10 && height > 10) {
+                        this.createField(this.dragStart, this.dragEnd);
+                    }
+                }
+
+                this.isDragging = false;
+                this.hideDragPreview();
+            }
+
+            handleDoubleClick(e) {
+                if (this.mode !== 'particle') return;
+
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                const mass = parseFloat(document.getElementById('particleMass').value);
+                const charge = parseFloat(document.getElementById('particleCharge').value);
+                const speed = parseFloat(document.getElementById('initialSpeed').value) || 0;
+                const angle = parseFloat(document.getElementById('initialAngle').value) || 90;
+
+                // 将角度转换为弧度
+                const radians = angle * Math.PI / 180;
+                // 修正坐标系问题：实际交换sin和cos应用，使0度对应向右（x正方向）运行
+                const vx = speed * Math.sin(radians);
+                const vy = speed * Math.cos(radians);
+
+                this.createParticle(x, y, mass, charge, vx, vy);
+            }
+
+            // 更新速度向量显示
+            updateVelocityDisplay() {
+                const speed = parseFloat(document.getElementById('initialSpeed').value) || 0;
+                const angle = parseFloat(document.getElementById('initialAngle').value) || 90;
+                document.getElementById('velocityVectorDisplay').textContent =
+                    `→ ${angle}° (${speed.toFixed(1)} m/s)`;
+            }
+
+            getRandomColor(type, strength) {
+                const hue = Math.floor(Math.random() * 360);
+                if (type === 'electric') {
+                    return strength > 0 ? `hsl(${hue}, 80%, 70%)` : `hsl(${(hue + 180) % 360}, 80%, 70%)`;
+                } else {
+                    return strength > 0 ? `hsl(${hue}, 80%, 70%)` : `hsl(${(hue + 30) % 360}, 80%, 70%)`;
+                }
+            }
+
+            createField(start, end) {
+                const strength = parseFloat(document.getElementById('fieldStrength').value);
+                const width = Math.abs(end.x - start.x);
+                const height = Math.abs(end.y - start.y);
+
+                const field = {
+                    id: Date.now(),
+                    type: this.mode,
+                    shape: this.currentShape,
+                    centerX: (start.x + end.x) / 2,
+                    centerY: (start.y + end.y) / 2,
+                    width: width,
+                    height: height,
+                    x: Math.min(start.x, end.x),
+                    y: Math.min(start.y, end.y),
+                    endX: Math.max(start.x, end.x),
+                    endY: Math.max(start.y, end.y),
+                    strength: strength,
+                    direction: { ...this.currentFieldDirection },
+                    magneticDirection: this.currentMagneticDirection,
+                    svgPath: null,
+                    color: this.getRandomColor(this.mode, strength)
+                };
+
+                this.fields.push(field);
+            }
+
+            createParticle(x, y, mass, charge, vx = 0, vy = 0) {
+                const particle = {
+                    id: Date.now(),
+                    x: x,
+                    y: y,
+                    vx: vx,
+                    vy: vy,
+                    mass: mass,
+                    charge: charge,
+                    trail: [],
+                    color: this.getParticleColor(charge)
+                };
+
+                this.particles.push(particle);
+            }
+
+            getParticleColor(charge) {
+                if (charge > 0) return '#ff6b6b'; // 红色 - 正电荷
+                if (charge < 0) return '#4ecdc4'; // 青色 - 负电荷
+                return '#ffd93d'; // 黄色 - 中性
+            }
+
+            getFieldAt(x, y) {
+                return this.fields.find(field =>
+                    x >= field.x && x <= field.endX &&
+                    y >= field.y && y <= field.endY
+                );
+            }
+
+            // 获取粒子所在位置的所有场
+            getFieldsAt(x, y) {
+                return this.fields.filter(field => {
+                    return this.isPointInField(x, y, field);
+                });
+            }
+
+            isPointInField(x, y, field) {
+                switch (field.shape) {
+                    case 'rectangle':
+                        return x >= field.x && x <= field.endX && y >= field.y && y <= field.endY;
+
+                    case 'circle':
+                        const radius = Math.min(field.width, field.height) / 2;
+                        const dx = x - field.centerX;
+                        const dy = y - field.centerY;
+                        return (dx * dx + dy * dy) <= (radius * radius);
+
+                    case 'triangle':
+                        return this.isPointInTriangle(x, y, field);
+
+                    case 'semicircle':
+                        return this.isPointInSemicircle(x, y, field);
+
+                    case 'svg':
+                        return this.isPointInSVGPath(x, y, field);
+
+                    default:
+                        return x >= field.x && x <= field.endX && y >= field.y && y <= field.endY;
+                }
+            }
+
+            isPointInTriangle(x, y, field) {
+                const { centerX, centerY, width, height } = field;
+                const x1 = centerX, y1 = centerY - height / 2; // 顶点
+                const x2 = centerX - width / 2, y2 = centerY + height / 2; // 左下角
+                const x3 = centerX + width / 2, y3 = centerY + height / 2; // 右下角
+
+                const denom = (y2 - y3) * (x1 - x3) + (x3 - x2) * (y1 - y3);
+                const a = ((y2 - y3) * (x - x3) + (x3 - x2) * (y - y3)) / denom;
+                const b = ((y3 - y1) * (x - x3) + (x1 - x3) * (y - y3)) / denom;
+                const c = 1 - a - b;
+
+                return a >= 0 && b >= 0 && c >= 0;
+            }
+
+            isPointInSemicircle(x, y, field) {
+                const { centerX, centerY, width, height } = field;
+                const radius = Math.min(width, height) / 2;
+                const dx = x - centerX;
+                const dy = y - centerY;
+
+                // 检查是否在圆形内
+                if ((dx * dx + dy * dy) > (radius * radius)) return false;
+
+                // 检查是否在半圆内（假设上半圆）
+                return dy <= centerY;
+            }
+
+            isPointInSVGPath(x, y, field) {
+                if (!field.svgPath) return false;
+
+                // 简化的SVG路径检测，这里需要根据实际的SVG路径实现
+                // 可以使用Canvas的isPointInPath方法
+                const ctx = this.ctx;
+                ctx.beginPath();
+                ctx.setTransform(1, 0, 0, 1, 0, 0); // 重置变换
+                ctx.translate(field.centerX, field.centerY);
+                ctx.scale(field.width / 100, field.height / 100); // 假设SVG是100x100
+
+                // 这里需要解析SVG路径并绘制到canvas
+                // 简化实现，实际需要完整的SVG路径解析器
+                return false; // 暂时返回false，需要完整实现
+            }
+
+            loadSVGShape(file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const svgText = e.target.result;
+                    const parser = new DOMParser();
+                    const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
+                    const svgElement = svgDoc.querySelector('svg');
+
+                    if (svgElement) {
+                        const paths = svgElement.querySelectorAll('path');
+                        if (paths.length > 0) {
+                            const pathData = paths[0].getAttribute('d');
+
+                            // 创建一个SVG形状的场
+                            const field = {
+                                id: Date.now(),
+                                type: this.mode,
+                                shape: 'svg',
+                                centerX: 400,
+                                centerY: 300,
+                                width: 200,
+                                height: 200,
+                                strength: parseFloat(document.getElementById('fieldStrength').value),
+                                direction: { ...this.currentFieldDirection },
+                                magneticDirection: this.currentMagneticDirection,
+                                svgPath: pathData,
+                        color: this.getRandomColor(this.mode, parseFloat(document.getElementById('fieldStrength').value))
+                            };
+
+                            this.fields.push(field);
+                        }
+                    }
+                };
+                reader.readAsText(file);
+            }
+
+            updateDragPreview() {
+                const preview = document.getElementById('dragPreview');
+                const left = Math.min(this.dragStart.x, this.dragEnd.x);
+                const top = Math.min(this.dragStart.y, this.dragEnd.y);
+                const width = Math.abs(this.dragEnd.x - this.dragStart.x);
+                const height = Math.abs(this.dragEnd.y - this.dragStart.y);
+
+                preview.style.left = left + 'px';
+                preview.style.top = top + 'px';
+                preview.style.width = width + 'px';
+                preview.style.height = height + 'px';
+                preview.style.display = 'block';
+
+                // 根据形状设置不同的预览样式
+                const strength = parseFloat(document.getElementById('fieldStrength').value);
+                const color = this.mode === 'electric' ?
+                    (strength > 0 ? '#ff6b6b' : '#4ecdc4') :
+                    (strength > 0 ? '#6b73ff' : '#ff6b9d');
+
+                preview.style.borderColor = color;
+                preview.style.background = color + '20';
+
+                // 根据形状调整边框圆角
+                switch (this.currentShape) {
+                    case 'circle':
+                        preview.style.borderRadius = '50%';
+                        break;
+                    case 'triangle':
+                        preview.style.borderRadius = '0';
+                        preview.style.clipPath = 'polygon(50% 0%, 0% 100%, 100% 100%)';
+                        break;
+                    case 'semicircle':
+                        preview.style.borderRadius = '50% 50% 0 0';
+                        break;
+                    default:
+                        preview.style.borderRadius = '8px';
+                        preview.style.clipPath = 'none';
+                }
+            }
+
+            hideDragPreview() {
+                document.getElementById('dragPreview').style.display = 'none';
+            }
+
+            startSimulation() {
+                this.isRunning = true;
+                this.isPaused = false;
+                document.getElementById('startBtn').textContent = '运行中...';
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('pauseBtn').disabled = false;
+            }
+
+            pauseSimulation() {
+                this.isPaused = !this.isPaused;
+                document.getElementById('pauseBtn').textContent = this.isPaused ? '继续' : '暂停';
+            }
+
+            resetSimulation() {
+                this.isRunning = false;
+                this.isPaused = false;
+                this.particles = [];
+                this.trails = [];
+                document.getElementById('startBtn').textContent = '开始模拟';
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('pauseBtn').disabled = true;
+                document.getElementById('pauseBtn').textContent = '暂停';
+            }
+
+            // 物理计算 - 支持多个场的叠加
+            calculateForces(particle) {
+                let fx = 0, fy = 0;
+
+                // 1. 重力
+                const gravityStrength = parseFloat(document.getElementById('gravityStrength').value);
+                if (gravityStrength > 0) {
+                    fx += particle.mass * gravityStrength * this.currentGravityDirection.x;
+                    fy += particle.mass * gravityStrength * this.currentGravityDirection.y;
+                }
+
+                // 2. 电磁场力
+                const fieldsAtPosition = this.getFieldsAt(particle.x, particle.y);
+
+                for (const field of fieldsAtPosition) {
+                    if (field.type === 'electric') {
+                        // 电场力 F = qE
+                        fx += particle.charge * field.strength * field.direction.x;
+                        fy += particle.charge * field.strength * field.direction.y;
+                    } else if (field.type === 'magnetic') {
+                        // 磁场力 F = q(v × B)
+                        // 在2D中，磁场B垂直于屏幕（z方向）
+                        const vx = particle.vx;
+                        const vy = particle.vy;
+                        const B = field.strength; // B的大小
+
+                        // 根据磁场方向确定B的方向
+                        // 穿出屏幕为+z方向，进入屏幕为-z方向
+                        const B_direction = field.magneticDirection === 'out' ? 1 : -1;
+                        const B_magnitude = B * B_direction;
+
+                        // 磁场力垂直于速度方向
+                        // 在2D中，v × B 的结果是垂直于v和B的向量
+                        // 如果B指向+z，则v × B = (vy, -vx)
+                        // 如果B指向-z，则v × B = (-vy, vx)
+                        fx += particle.charge * B_magnitude * vy;
+                        fy -= particle.charge * B_magnitude * vx;
+                    }
+                }
+
+                return { fx, fy };
+            }
+
+            updateParticles(deltaTime) {
+                if (!this.isRunning || this.isPaused) return;
+
+                // 限制时间步长，确保数值稳定性
+                const dt = Math.min(deltaTime / 1000, 0.016); // 最大16ms，约60FPS
+
+                for (const particle of this.particles) {
+                    // 保存原始速度大小
+                    const originalSpeed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
+
+                    // 计算所有力（重力 + 电磁场力）
+                    const force = this.calculateForces(particle);
+
+                    // 应用力: F = ma, 所以 a = F/m
+                    const ax = force.fx / particle.mass;
+                    const ay = force.fy / particle.mass;
+
+                    // 使用改进的数值积分（半隐式欧拉法）
+                    // 先更新速度
+                    particle.vx += ax * dt;
+                    particle.vy += ay * dt;
+
+                    // 检查粒子所在的场环境
+                    const fieldsAtPosition = this.getFieldsAt(particle.x, particle.y);
+                    const inMagneticField = fieldsAtPosition.some(f => f.type === 'magnetic');
+                    const inElectricField = fieldsAtPosition.some(f => f.type === 'electric');
+                    
+                    // 只在纯磁场环境中（没有电场）才保持速度大小不变
+                    if (inMagneticField && !inElectricField && originalSpeed > 0) {
+                        const newSpeed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
+                        const scale = originalSpeed / newSpeed;
+                        particle.vx *= scale;
+                        particle.vy *= scale;
+                    }
+
+
+
+                    // 再更新位置（使用新速度）
+                    particle.x += particle.vx * dt;
+                    particle.y += particle.vy * dt;
+
+                    // 添加轨迹点
+                    particle.trail.push({ x: particle.x, y: particle.y, time: Date.now() });
+
+                    // 限制轨迹长度
+                    if (particle.trail.length > 1000) {
+                        particle.trail.shift();
+                    }
+
+                    // 边界检测 - 弹性碰撞
+                    const bounceFactor = 0.9;
+                    if (particle.x < 0) {
+                        particle.vx *= -bounceFactor;
+                        particle.x = 0;
+                    } else if (particle.x > this.canvas.width) {
+                        particle.vx *= -bounceFactor;
+                        particle.x = this.canvas.width;
+                    }
+
+                    if (particle.y < 0) {
+                        particle.vy *= -bounceFactor;
+                        particle.y = 0;
+                    } else if (particle.y > this.canvas.height) {
+                        particle.vy *= -bounceFactor;
+                        particle.y = this.canvas.height;
+                    }
+                }
+            }
+
+            draw() {
+                // 创建渐变背景效果
+                const gradient = this.ctx.createRadialGradient(
+                    this.canvas.width / 2, this.canvas.height / 2, 0,
+                    this.canvas.width / 2, this.canvas.height / 2, Math.max(this.canvas.width, this.canvas.height)
+                );
+                gradient.addColorStop(0, 'rgba(0, 0, 0, 0.02)');
+                gradient.addColorStop(1, 'rgba(0, 0, 0, 0.05)');
+                this.ctx.fillStyle = gradient;
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+                // 绘制网格
+                this.drawGrid();
+
+                // 绘制坐标系
+                if (this.showCoordinateSystem) {
+                    this.drawCoordinateSystem();
+                }
+
+                // 绘制场
+                this.drawFields();
+
+                // 绘制重力场
+                this.drawGravityField();
+
+                // 绘制轨迹
+                this.drawTrails();
+
+                // 绘制粒子
+                this.drawParticles();
+            }
+
+            drawGrid() {
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+                this.ctx.lineWidth = 1;
+
+                const gridSize = 50;
+
+                for (let x = 0; x < this.canvas.width; x += gridSize) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x, 0);
+                    this.ctx.lineTo(x, this.canvas.height);
+                    this.ctx.stroke();
+                }
+
+                for (let y = 0; y < this.canvas.height; y += gridSize) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0, y);
+                    this.ctx.lineTo(this.canvas.width, y);
+                    this.ctx.stroke();
+                }
+            }
+
+            drawCoordinateSystem() {
+                const centerX = this.canvas.width / 2;
+                const centerY = this.canvas.height / 2;
+
+                // 设置坐标系样式
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                this.ctx.lineWidth = 2;
+                this.ctx.font = '14px Arial';
+                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                this.ctx.textAlign = 'center';
+
+                // 绘制X轴
+                this.ctx.beginPath();
+                this.ctx.moveTo(50, centerY);
+                this.ctx.lineTo(this.canvas.width - 50, centerY);
+                this.ctx.stroke();
+
+                // 绘制Y轴
+                this.ctx.beginPath();
+                this.ctx.moveTo(centerX, 50);
+                this.ctx.lineTo(centerX, this.canvas.height - 50);
+                this.ctx.stroke();
+
+                // 绘制X轴箭头
+                this.ctx.beginPath();
+                this.ctx.moveTo(this.canvas.width - 50, centerY);
+                this.ctx.lineTo(this.canvas.width - 60, centerY - 5);
+                this.ctx.moveTo(this.canvas.width - 50, centerY);
+                this.ctx.lineTo(this.canvas.width - 60, centerY + 5);
+                this.ctx.stroke();
+
+                // 绘制Y轴箭头
+                this.ctx.beginPath();
+                this.ctx.moveTo(centerX, 50);
+                this.ctx.lineTo(centerX - 5, 60);
+                this.ctx.moveTo(centerX, 50);
+                this.ctx.lineTo(centerX + 5, 60);
+                this.ctx.stroke();
+
+                // 绘制坐标轴标签
+                this.ctx.fillText('X', this.canvas.width - 30, centerY - 10);
+                this.ctx.fillText('Y', centerX + 10, 30);
+                this.ctx.fillText('O', centerX - 15, centerY + 20);
+
+                // 绘制刻度线
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                this.ctx.lineWidth = 1;
+
+                const tickSpacing = 50;
+                const tickLength = 8;
+
+                // X轴刻度
+                for (let x = centerX + tickSpacing; x < this.canvas.width - 50; x += tickSpacing) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x, centerY - tickLength / 2);
+                    this.ctx.lineTo(x, centerY + tickLength / 2);
+                    this.ctx.stroke();
+
+                    // 刻度标签
+                    const value = Math.round((x - centerX) / tickSpacing);
+                    this.ctx.fillText(value.toString(), x, centerY + 20);
+                }
+
+                for (let x = centerX - tickSpacing; x > 50; x -= tickSpacing) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x, centerY - tickLength / 2);
+                    this.ctx.lineTo(x, centerY + tickLength / 2);
+                    this.ctx.stroke();
+
+                    // 刻度标签
+                    const value = Math.round((x - centerX) / tickSpacing);
+                    this.ctx.fillText(value.toString(), x, centerY + 20);
+                }
+
+                // Y轴刻度
+                for (let y = centerY + tickSpacing; y < this.canvas.height - 50; y += tickSpacing) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(centerX - tickLength / 2, y);
+                    this.ctx.lineTo(centerX + tickLength / 2, y);
+                    this.ctx.stroke();
+
+                    // 刻度标签
+                    const value = Math.round((centerY - y) / tickSpacing);
+                    this.ctx.fillText(value.toString(), centerX - 20, y + 5);
+                }
+
+                for (let y = centerY - tickSpacing; y > 50; y -= tickSpacing) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(centerX - tickLength / 2, y);
+                    this.ctx.lineTo(centerX + tickLength / 2, y);
+                    this.ctx.stroke();
+
+                    // 刻度标签
+                    const value = Math.round((centerY - y) / tickSpacing);
+                    this.ctx.fillText(value.toString(), centerX - 20, y + 5);
+                }
+            }
+
+            drawFields() {
+                for (const field of this.fields) {
+                    const alpha = Math.abs(field.strength) / 100 * 0.4;
+
+                    if (field.type === 'electric') {
+                        const color = field.strength > 0 ? '#ff6b6b' : '#4ecdc4';
+                        this.ctx.fillStyle = color + Math.floor(alpha * 255).toString(16).padStart(2, '0');
+                        this.drawFieldShape(field);
+
+                        // 绘制电场线方向
+                        this.drawFieldArrows(field, color);
+                    } else if (field.type === 'magnetic') {
+                        const color = field.strength > 0 ? '#6b73ff' : '#ff6b9d';
+                        this.ctx.fillStyle = color + Math.floor(alpha * 255).toString(16).padStart(2, '0');
+                        this.drawFieldShape(field);
+
+                        // 绘制磁场符号
+                        this.drawMagneticFieldSymbol(field, color);
+                    }
+
+                    // 绘制边框
+                    this.ctx.strokeStyle = field.strength > 0 ?
+                        (field.type === 'electric' ? '#ff6b6b' : '#6b73ff') :
+                        (field.type === 'electric' ? '#4ecdc4' : '#ff6b9d');
+                    this.ctx.lineWidth = 2;
+                    this.drawFieldBorder(field);
+                }
+            }
+
+            drawFieldShape(field) {
+                this.ctx.beginPath();
+
+                switch (field.shape) {
+                    case 'rectangle':
+                        this.ctx.fillRect(field.x, field.y, field.endX - field.x, field.endY - field.y);
+                        break;
+
+                    case 'circle':
+                        const radius = Math.min(field.width, field.height) / 2;
+                        this.ctx.arc(field.centerX, field.centerY, radius, 0, Math.PI * 2);
+                        this.ctx.fill();
+                        break;
+
+                    case 'triangle':
+                        this.ctx.moveTo(field.centerX, field.centerY - field.height / 2); // 顶点
+                        this.ctx.lineTo(field.centerX - field.width / 2, field.centerY + field.height / 2); // 左下
+                        this.ctx.lineTo(field.centerX + field.width / 2, field.centerY + field.height / 2); // 右下
+                        this.ctx.closePath();
+                        this.ctx.fill();
+                        break;
+
+                    case 'semicircle':
+                        const semicircleRadius = Math.min(field.width, field.height) / 2;
+                        this.ctx.arc(field.centerX, field.centerY, semicircleRadius, Math.PI, 0);
+                        this.ctx.lineTo(field.centerX + semicircleRadius, field.centerY);
+                        this.ctx.lineTo(field.centerX - semicircleRadius, field.centerY);
+                        this.ctx.closePath();
+                        this.ctx.fill();
+                        break;
+
+                    case 'svg':
+                        // 简化的SVG绘制
+                        this.ctx.fillRect(field.x, field.y, field.endX - field.x, field.endY - field.y);
+                        break;
+
+                    default:
+                        this.ctx.fillRect(field.x, field.y, field.endX - field.x, field.endY - field.y);
+                }
+            }
+
+            drawFieldBorder(field) {
+                this.ctx.beginPath();
+
+                switch (field.shape) {
+                    case 'rectangle':
+                        this.ctx.strokeRect(field.x, field.y, field.endX - field.x, field.endY - field.y);
+                        break;
+
+                    case 'circle':
+                        const radius = Math.min(field.width, field.height) / 2;
+                        this.ctx.arc(field.centerX, field.centerY, radius, 0, Math.PI * 2);
+                        this.ctx.stroke();
+                        break;
+
+                    case 'triangle':
+                        this.ctx.moveTo(field.centerX, field.centerY - field.height / 2);
+                        this.ctx.lineTo(field.centerX - field.width / 2, field.centerY + field.height / 2);
+                        this.ctx.lineTo(field.centerX + field.width / 2, field.centerY + field.height / 2);
+                        this.ctx.closePath();
+                        this.ctx.stroke();
+                        break;
+
+                    case 'semicircle':
+                        const semicircleRadius = Math.min(field.width, field.height) / 2;
+                        this.ctx.arc(field.centerX, field.centerY, semicircleRadius, Math.PI, 0);
+                        this.ctx.lineTo(field.centerX + semicircleRadius, field.centerY);
+                        this.ctx.lineTo(field.centerX - semicircleRadius, field.centerY);
+                        this.ctx.closePath();
+                        this.ctx.stroke();
+                        break;
+
+                    case 'svg':
+                        this.ctx.strokeRect(field.x, field.y, field.endX - field.x, field.endY - field.y);
+                        break;
+
+                    default:
+                        this.ctx.strokeRect(field.x, field.y, field.endX - field.x, field.endY - field.y);
+                }
+            }
+
+            drawFieldArrows(field, color) {
+                this.ctx.fillStyle = color;
+                const arrowSpacing = 40;
+                const centerX = (field.x + field.endX) / 2;
+                const centerY = (field.y + field.endY) / 2;
+
+                // 绘制箭头表示方向
+                this.ctx.beginPath();
+                const arrowSize = 12;
+                this.ctx.moveTo(centerX - arrowSize * field.direction.x, centerY - arrowSize * field.direction.y);
+                this.ctx.lineTo(centerX + arrowSize * field.direction.x, centerY + arrowSize * field.direction.y);
+
+                // 绘制箭头头部
+                const headSize = 6;
+                this.ctx.moveTo(centerX + arrowSize * field.direction.x, centerY + arrowSize * field.direction.y);
+                this.ctx.lineTo(
+                    centerX + (arrowSize - headSize) * field.direction.x - headSize * field.direction.y,
+                    centerY + (arrowSize - headSize) * field.direction.y + headSize * field.direction.x
+                );
+                this.ctx.moveTo(centerX + arrowSize * field.direction.x, centerY + arrowSize * field.direction.y);
+                this.ctx.lineTo(
+                    centerX + (arrowSize - headSize) * field.direction.x + headSize * field.direction.y,
+                    centerY + (arrowSize - headSize) * field.direction.y - headSize * field.direction.x
+                );
+                this.ctx.stroke();
+            }
+
+            drawMagneticFieldSymbol(field, color) {
+                this.ctx.strokeStyle = color;
+                this.ctx.fillStyle = color;
+                this.ctx.lineWidth = 3;
+
+                const centerX = (field.x + field.endX) / 2;
+                const centerY = (field.y + field.endY) / 2;
+                const radius = Math.min(field.endX - field.x, field.endY - field.y) / 6;
+
+                // 绘制圆形
+                this.ctx.beginPath();
+                this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                this.ctx.stroke();
+
+                // 根据磁场方向绘制符号
+                if (field.magneticDirection === 'out') {
+                    // 穿出屏幕 - 绘制点
+                    this.ctx.beginPath();
+                    this.ctx.arc(centerX, centerY, radius * 0.3, 0, Math.PI * 2);
+                    this.ctx.fill();
+
+                    // 绘制箭头
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(centerX - radius * 0.7, centerY);
+                    this.ctx.lineTo(centerX + radius * 0.7, centerY);
+                    this.ctx.moveTo(centerX + radius * 0.5, centerY - radius * 0.2);
+                    this.ctx.lineTo(centerX + radius * 0.7, centerY);
+                    this.ctx.lineTo(centerX + radius * 0.5, centerY + radius * 0.2);
+                    this.ctx.stroke();
+                } else {
+                    // 进入屏幕 - 绘制X
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(centerX - radius * 0.5, centerY - radius * 0.5);
+                    this.ctx.lineTo(centerX + radius * 0.5, centerY + radius * 0.5);
+                    this.ctx.moveTo(centerX + radius * 0.5, centerY - radius * 0.5);
+                    this.ctx.lineTo(centerX - radius * 0.5, centerY + radius * 0.5);
+                    this.ctx.stroke();
+
+                    // 绘制箭头
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(centerX - radius * 0.7, centerY);
+                    this.ctx.lineTo(centerX + radius * 0.7, centerY);
+                    this.ctx.moveTo(centerX - radius * 0.5, centerY - radius * 0.2);
+                    this.ctx.lineTo(centerX - radius * 0.7, centerY);
+                    this.ctx.lineTo(centerX - radius * 0.5, centerY + radius * 0.2);
+                    this.ctx.stroke();
+                }
+            }
+
+            drawGravityField() {
+                const gravityStrength = parseFloat(document.getElementById('gravityStrength').value);
+                if (gravityStrength <= 0) return;
+
+                this.ctx.strokeStyle = 'rgba(255, 255, 0, 0.6)';
+                this.ctx.lineWidth = 2;
+
+                // 绘制重力场线
+                const spacing = 80;
+                const arrowSize = 15;
+
+                for (let x = spacing; x < this.canvas.width; x += spacing) {
+                    for (let y = spacing; y < this.canvas.height; y += spacing) {
+                        // 绘制重力方向箭头
+                        const endX = x + this.currentGravityDirection.x * arrowSize;
+                        const endY = y + this.currentGravityDirection.y * arrowSize;
+
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(x, y);
+                        this.ctx.lineTo(endX, endY);
+
+                        // 绘制箭头头部
+                        const headSize = 6;
+                        this.ctx.moveTo(endX, endY);
+                        this.ctx.lineTo(
+                            endX - headSize * this.currentGravityDirection.x - headSize * this.currentGravityDirection.y,
+                            endY - headSize * this.currentGravityDirection.y + headSize * this.currentGravityDirection.x
+                        );
+                        this.ctx.moveTo(endX, endY);
+                        this.ctx.lineTo(
+                            endX - headSize * this.currentGravityDirection.x + headSize * this.currentGravityDirection.y,
+                            endY - headSize * this.currentGravityDirection.y - headSize * this.currentGravityDirection.x
+                        );
+                        this.ctx.stroke();
+                    }
+                }
+            }
+
+            drawTrails() {
+                for (const particle of this.particles) {
+                    if (particle.trail.length < 2) continue;
+
+                    this.ctx.lineWidth = 3;
+                    this.ctx.lineCap = 'round';
+
+                    for (let i = 1; i < particle.trail.length; i++) {
+                        const point1 = particle.trail[i - 1];
+                        const point2 = particle.trail[i];
+
+                        // 彩虹颜色渐变
+                        const alpha = Math.min(1, i / particle.trail.length * 2);
+                        const hue = (alpha * 360 + Date.now() * 0.2) % 360;
+
+                        this.ctx.strokeStyle = `hsla(${hue}, 100%, 70%, ${alpha})`;
+
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(point1.x, point1.y);
+                        this.ctx.lineTo(point2.x, point2.y);
+                        this.ctx.stroke();
+                    }
+                }
+            }
+
+            drawParticles() {
+                for (const particle of this.particles) {
+                    // 绘制粒子
+                    this.ctx.fillStyle = particle.color;
+                    this.ctx.beginPath();
+                    this.ctx.arc(particle.x, particle.y, 6, 0, Math.PI * 2);
+                    this.ctx.fill();
+
+                    // 绘制粒子光晕
+                    const gradient = this.ctx.createRadialGradient(
+                        particle.x, particle.y, 0,
+                        particle.x, particle.y, 12
+                    );
+                    gradient.addColorStop(0, particle.color + '80');
+                    gradient.addColorStop(1, particle.color + '00');
+                    this.ctx.fillStyle = gradient;
+                    this.ctx.beginPath();
+                    this.ctx.arc(particle.x, particle.y, 12, 0, Math.PI * 2);
+                    this.ctx.fill();
+
+                    // 绘制电荷符号
+                    this.ctx.fillStyle = 'white';
+                    this.ctx.font = 'bold 14px Arial';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.textBaseline = 'middle';
+
+                    const chargeSymbol = particle.charge > 0 ? '+' : particle.charge < 0 ? '-' : '0';
+                    this.ctx.fillText(chargeSymbol, particle.x, particle.y);
+
+                    // 绘制速度向量
+                    if (this.isRunning) {
+                        const speed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
+                        if (speed > 0.5) {
+                            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                            this.ctx.lineWidth = 2;
+                            this.ctx.beginPath();
+                            this.ctx.moveTo(particle.x, particle.y);
+                            this.ctx.lineTo(
+                                particle.x + particle.vx * 8,
+                                particle.y + particle.vy * 8
+                            );
+                            this.ctx.stroke();
+                        }
+                    }
+                }
+            }
+
+            startAnimation() {
+                const animate = (currentTime) => {
+                    const deltaTime = currentTime - this.lastTime;
+                    this.lastTime = currentTime;
+
+                    this.updateParticles(deltaTime);
+                    this.draw();
+
+                    this.animationId = requestAnimationFrame(animate);
+                };
+
+                this.animationId = requestAnimationFrame(animate);
+            }
+        }
+
+        // 全局坐标系切换函数
+        let simulationInstance = null;
+
+        function toggleCoordinateSystem() {
+            if (simulationInstance) {
+                simulationInstance.showCoordinateSystem = !simulationInstance.showCoordinateSystem;
+                const button = document.getElementById('coordinateButton');
+                button.classList.toggle('active', simulationInstance.showCoordinateSystem);
+            }
+        }
+
+        // 启动模拟器
+        window.addEventListener('load', () => {
+            simulationInstance = new ElectromagneticSimulation();
+        });
+
+        // 全局函数接口 - 供用户通过函数方式操作模拟器
+
+        /**
+         * 创建电场
+         * @param {number} x1 - 起始点x坐标
+         * @param {number} y1 - 起始点y坐标
+         * @param {number} x2 - 结束点x坐标
+         * @param {number} y2 - 结束点y坐标
+         * @param {number} strength - 场强度，默认50
+         * @param {string} shape - 场形状，可选 'rectangle', 'circle', 'triangle', 'semicircle'，默认 'rectangle'
+         * @param {string} direction - 场方向，可选 'right', 'left', 'up', 'down'，默认 'down'
+         */
+        function createE(x1, y1, x2, y2, strength = 50, shape = 'rectangle', direction = 'down') {
+            if (!simulationInstance) return;
+            
+            // 保存当前模式
+            const originalMode = simulationInstance.mode;
+            
+            // 设置为电场模式并创建场
+            simulationInstance.mode = 'electric';
+            simulationInstance.currentShape = shape;
+            simulationInstance.currentFieldDirection = simulationInstance.getDirectionVector(direction);
+            
+            // 临时设置场强度
+            document.getElementById('fieldStrength').value = strength;
+            
+            // 创建电场
+            simulationInstance.createField({ x: x1, y: y1 }, { x: x2, y: y2 });
+            
+            // 恢复原始模式
+            simulationInstance.mode = originalMode;
+        }
+
+        /**
+         * 创建磁场
+         * @param {number} x1 - 起始点x坐标
+         * @param {number} y1 - 起始点y坐标
+         * @param {number} x2 - 结束点x坐标
+         * @param {number} y2 - 结束点y坐标
+         * @param {number} strength - 场强度，默认50
+         * @param {string} shape - 场形状，可选 'rectangle', 'circle', 'triangle', 'semicircle'，默认 'rectangle'
+         * @param {string} magneticDirection - 磁场方向，可选 'out'（穿出屏幕）, 'in'（进入屏幕），默认 'out'
+         */
+        function createB(x1, y1, x2, y2, strength = 50, shape = 'rectangle', magneticDirection = 'out') {
+            if (!simulationInstance) return;
+            
+            // 保存当前模式
+            const originalMode = simulationInstance.mode;
+            
+            // 设置为磁场模式并创建场
+            simulationInstance.mode = 'magnetic';
+            simulationInstance.currentShape = shape;
+            simulationInstance.currentMagneticDirection = magneticDirection;
+            
+            // 临时设置场强度
+            document.getElementById('fieldStrength').value = strength;
+            
+            // 创建磁场
+            simulationInstance.createField({ x: x1, y: y1 }, { x: x2, y: y2 });
+            
+            // 恢复原始模式
+            simulationInstance.mode = originalMode;
+        }
+
+        /**
+         * 创建电荷粒子
+         * @param {number} x - 粒子x坐标
+         * @param {number} y - 粒子y坐标
+         * @param {number} mass - 粒子质量，默认1
+         * @param {number} charge - 电荷量，默认1
+         * @param {number} speed - 初速度大小，默认0
+         * @param {number} angle - 速度角度（度），默认90
+         */
+        function createParticle(x, y, mass = 1, charge = 1, speed = 0, angle = 90) {
+            if (!simulationInstance) return;
+            
+            // 将角度转换为弧度
+            const radians = angle * Math.PI / 180;
+            // 计算速度分量
+            const vx = speed * Math.sin(radians);
+            const vy = speed * Math.cos(radians);
+            
+            // 创建粒子
+            simulationInstance.createParticle(x, y, mass, charge, vx, vy);
+        }
+
+        /**
+         * 开始模拟
+         */
+        function start() {
+            if (simulationInstance) {
+                simulationInstance.startSimulation();
+            }
+        }
+
+        /**
+         * 暂停模拟
+         */
+        function pause() {
+            if (simulationInstance) {
+                simulationInstance.pauseSimulation();
+            }
+        }
+
+        /**
+         * 重置模拟
+         */
+        function reset() {
+            if (simulationInstance) {
+                simulationInstance.resetSimulation();
+            }
+        }
+
+        /**
+         * 设置重力场
+         * @param {number} strength - 重力强度，默认0
+         * @param {string} direction - 重力方向，可选 'right', 'left', 'up', 'down'，默认 'down'
+         */
+        function setGravity(strength = 0, direction = 'down') {
+            if (!simulationInstance) return;
+            
+            // 设置重力强度
+            document.getElementById('gravityStrength').value = strength;
+            document.getElementById('gravityValue').textContent = strength;
+            
+            // 设置重力方向
+            simulationInstance.currentGravityDirection = simulationInstance.getDirectionVector(direction);
+        }
+
+        /**
+         * 清除所有场
+         */
+        function clearFields() {
+            if (simulationInstance) {
+                simulationInstance.fields = [];
+            }
+        }
+
+        /**
+         * 清除所有粒子
+         */
+        function clearParticles() {
+            if (simulationInstance) {
+                simulationInstance.particles = [];
+                simulationInstance.trails = [];
+            }
+        }
+
+
+        createE(200, 200, 400, 300, 60, 'rectangle', 'right');
+
+// 创建一个穿出屏幕的磁场区域
+createB(500, 200, 700, 400, 50, 'circle', 'out');
+
+// 创建一个带正电的粒子，有一定初速度
+createParticle(100, 250, 1, 1, 20, 0);
+
+// 设置重力场
+setGravity(10, 'down');
+
+// 开始模拟
+start();
+    </script>
+</body>
+
+</html>
