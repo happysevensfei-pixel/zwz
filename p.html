@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>平抛运动3D交互场景</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: #000;
+            overflow: hidden;
+        }
+
+        #canvas-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .watermark {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            color: rgba(255, 255, 255, 0.1);
+            font-size: 24px;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .control-panel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 30px;
+            color: #fff;
+            z-index: 100;
+            cursor: move;
+            min-width: 400px;
+        }
+
+        .panel-title {
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-align: center;
+            color: #fff;
+        }
+
+        .step-item {
+            padding: 15px;
+            margin: 10px 0;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 18px;
+        }
+
+        .step-item:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateX(5px);
+        }
+
+        .step-item.active {
+            background: rgba(100, 200, 255, 0.3);
+            border-left: 4px solid #64c8ff;
+        }
+
+        .parameter-panel {
+            position: absolute;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 30px;
+            color: #fff;
+            z-index: 100;
+            cursor: move;
+            min-width: 300px;
+        }
+
+        .parameter-item {
+            margin: 20px 0;
+        }
+
+        .parameter-item label {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .parameter-item input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .parameter-item input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #64c8ff;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .parameter-value {
+            display: inline-block;
+            margin-left: 10px;
+            font-size: 18px;
+            color: #64c8ff;
+        }
+
+        .button-group {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            z-index: 100;
+        }
+
+        .control-btn {
+            padding: 12px 30px;
+            background: rgba(100, 100, 100, 0.7);
+            border: none;
+            border-radius: 25px;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            backdrop-filter: blur(5px);
+        }
+
+        .control-btn:hover {
+            background: rgba(150, 150, 150, 0.8);
+            transform: scale(1.05);
+        }
+
+        .info-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            color: #fff;
+            max-width: 600px;
+            font-size: 18px;
+            line-height: 1.6;
+        }
+
+        .info-text {
+            min-height: 50px;
+            overflow: hidden;
+            white-space: pre-wrap;
+        }
+
+        .info-text::after {
+            content: '|';
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+
+            0%,
+            50% {
+                opacity: 1;
+            }
+
+            51%,
+            100% {
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="canvas-container">
+        <div class="watermark">造物主 4.0 plus</div>
+
+        <div class="button-group">
+            <button class="control-btn" onclick="toggleFullscreen()">全屏</button>
+            <button class="control-btn" onclick="togglePause()">暂停</button>
+            <button class="control-btn" onclick="resetSimulation()">重置</button>
+        </div>
+
+        <div class="control-panel" id="stepPanel">
+            <div class="panel-title">平抛运动学习步骤</div>
+            <div class="step-item active" data-step="1">第一步：创建实验平台</div>
+            <div class="step-item" data-step="2">第二步：添加小球</div>
+            <div class="step-item" data-step="3">第三步：设置初速度</div>
+            <div class="step-item" data-step="4">第四步：开始平抛运动</div>
+            <div class="step-item" data-step="5">第五步：观察运动轨迹</div>
+        </div>
+
+        <div class="parameter-panel" id="paramPanel">
+            <div class="panel-title">参数设置</div>
+            <div class="parameter-item">
+                <label>初速度 (m/s): <span class="parameter-value" id="velocityValue">10</span></label>
+                <input type="range" id="velocitySlider" min="1" max="20" value="10" step="0.5">
+            </div>
+            <div class="parameter-item">
+                <label>平台高度 (m): <span class="parameter-value" id="heightValue">10</span></label>
+                <input type="range" id="heightSlider" min="5" max="20" value="10" step="0.5">
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-text" id="infoText">欢迎来到平抛运动3D交互场景！点击左侧步骤开始学习。</div>
+        </div>
+    </div>
+
+    <script src="https://cdn.bootcdn.net/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/cannon.js/0.6.2/cannon.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        let scene, camera, renderer, controls;
+        let world;
+        let ball, platform;
+        let ballBody, platformBody;
+        let trajectory = [];
+        let trajectoryLine;
+        let isPaused = false;
+        let currentStep = 1;
+        let initialVelocity = 10;
+        let platformHeight = 10;
+        let animationId;
+
+        // 初始化Three.js场景
+        function initThree() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a0a);
+            scene.fog = new THREE.Fog(0x0a0a0a, 10, 100);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(20, 15, 20);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.screenSpacePanning = true;
+
+            // 添加光源
+            const ambientLight = new THREE.AmbientLight(0x404040);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(10, 20, 10);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.camera.left = -30;
+            directionalLight.shadow.camera.right = 30;
+            directionalLight.shadow.camera.top = 30;
+            directionalLight.shadow.camera.bottom = -30;
+            scene.add(directionalLight);
+
+            // 添加地面
+            const groundGeometry = new THREE.PlaneGeometry(100, 100);
+            const groundMaterial = new THREE.MeshPhongMaterial({
+                color: 0x1a1a1a,
+                side: THREE.DoubleSide
+            });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            // 添加网格
+            const gridHelper = new THREE.GridHelper(100, 20, 0x444444, 0x222222);
+            scene.add(gridHelper);
+
+            // 添加坐标轴
+            const axesHelper = new THREE.AxesHelper(10);
+            scene.add(axesHelper);
+        }
+
+        // 初始化Cannon.js物理世界
+        function initCannon() {
+            world = new CANNON.World();
+            world.gravity.set(0, -9.8, 0);
+            world.broadphase = new CANNON.NaiveBroadphase();
+            world.solver.iterations = 10;
+        }
+
+        // 创建平台
+        function createPlatform() {
+            const platformGeometry = new THREE.BoxGeometry(10, 0.5, 5);
+            const platformMaterial = new THREE.MeshPhongMaterial({
+                color: 0x666666,
+                transparent: true,
+                opacity: 0.8
+            });
+            platform = new THREE.Mesh(platformGeometry, platformMaterial);
+            platform.position.set(0, platformHeight, 0);
+            platform.castShadow = true;
+            platform.receiveShadow = true;
+            scene.add(platform);
+
+            const platformShape = new CANNON.Box(new CANNON.Vec3(5, 0.25, 2.5));
+            platformBody = new CANNON.Body({
+                mass: 0,
+                shape: platformShape,
+                position: new CANNON.Vec3(0, platformHeight, 0)
+            });
+            world.add(platformBody);
+        }
+
+        // 创建小球
+        function createBall() {
+            const ballGeometry = new THREE.SphereGeometry(0.5, 32, 32);
+            const ballMaterial = new THREE.MeshPhongMaterial({
+                color: 0xff4444,
+                emissive: 0x440000
+            });
+            ball = new THREE.Mesh(ballGeometry, ballMaterial);
+            ball.position.set(-4.5, platformHeight + 1, 0);
+            ball.castShadow = true;
+            scene.add(ball);
+
+            const ballShape = new CANNON.Sphere(0.5);
+            ballBody = new CANNON.Body({
+                mass: 1,
+                shape: ballShape,
+                position: new CANNON.Vec3(-4.5, platformHeight + 1, 0)
+            });
+            world.add(ballBody);
+        }
+
+        // 创建轨迹线
+        function createTrajectoryLine() {
+            const material = new THREE.LineBasicMaterial({
+                color: 0x00ff00,
+                linewidth: 2
+            });
+            const geometry = new THREE.BufferGeometry();
+            trajectoryLine = new THREE.Line(geometry, material);
+            scene.add(trajectoryLine);
+        }
+
+        // 更新轨迹
+        function updateTrajectory() {
+            trajectory.push(ball.position.clone());
+
+            const positions = new Float32Array(trajectory.length * 3);
+            for (let i = 0; i < trajectory.length; i++) {
+                positions[i * 3] = trajectory[i].x;
+                positions[i * 3 + 1] = trajectory[i].y;
+                positions[i * 3 + 2] = trajectory[i].z;
+            }
+
+            trajectoryLine.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        }
+
+        // 开始平抛运动
+        function startProjectileMotion() {
+            ballBody.velocity.set(initialVelocity, 0, 0);
+            ballBody.position.set(-4.5, platformHeight + 1, 0);
+        }
+
+        // 重置场景
+        function resetSimulation() {
+            trajectory = [];
+            if (trajectoryLine) {
+                trajectoryLine.geometry.dispose();
+                scene.remove(trajectoryLine);
+            }
+
+            if (ball) {
+                scene.remove(ball);
+                world.remove(ballBody);
+            }
+
+            if (platform) {
+                scene.remove(platform);
+                world.remove(platformBody);
+            }
+
+            createPlatform();
+            createBall();
+            createTrajectoryLine();
+
+            currentStep = 1;
+            updateStepHighlight();
+            typeWriter("场景已重置，请重新开始学习平抛运动！");
+        }
+
+        // 动画循环
+        function animate() {
+            if (!isPaused) {
+                animationId = requestAnimationFrame(animate);
+
+                world.step(1 / 60);
+
+                ball.position.copy(ballBody.position);
+                ball.quaternion.copy(ballBody.quaternion);
+
+                if (ballBody.velocity.x !== 0 || ballBody.velocity.y !== 0) {
+                    updateTrajectory();
+                }
+
+                controls.update();
+                renderer.render(scene, camera);
+            }
+        }
+
+        // 打字机效果
+        function typeWriter(text) {
+            const infoText = document.getElementById('infoText');
+            infoText.textContent = '';
+            let i = 0;
+            const speed = 50;
+
+            function type() {
+                if (i < text.length) {
+                    infoText.textContent += text.charAt(i);
+                    i++;
+                    setTimeout(type, speed);
+                }
+            }
+            type();
+        }
+
+        // 更新步骤高亮
+        function updateStepHighlight() {
+            const steps = document.querySelectorAll('.step-item');
+            steps.forEach(step => step.classList.remove('active'));
+            steps[currentStep - 1].classList.add('active');
+        }
+
+        // 步骤点击事件
+        document.querySelectorAll('.step-item').forEach(step => {
+            step.addEventListener('click', function () {
+                const stepNum = parseInt(this.dataset.step);
+                currentStep = stepNum;
+                updateStepHighlight();
+
+                switch (stepNum) {
+                    case 1:
+                        typeWriter("第一步：我们今天来学习创建实验平台。这个平台是用来给小球提供初始位置的，高度为" + platformHeight + "米。在理想条件下，平台是完全光滑的，没有摩擦力。");
+                        break;
+                    case 2:
+                        typeWriter("第二步：现在我们在平台上添加一个小球。小球的质量为1kg，半径为0.5米。在高中物理中，我们假设小球是质点，不会自转。");
+                        if (!ball) {
+                            createBall();
+                        }
+                        break;
+                    case 3:
+                        typeWriter("第三步：设置小球的初速度。平抛运动的初速度是水平方向的，大小为" + initialVelocity + "m/s。根据平抛运动规律，水平方向做匀速直线运动，竖直方向做自由落体运动。");
+                        break;
+                    case 4:
+                        typeWriter("第四步：开始平抛运动！小球获得初速度后，将同时参与两个分运动：水平方向的匀速直线运动和竖直方向的自由落体运动。运动时间由高度决定：t = √(2h/g)。");
+                        startProjectileMotion();
+                        break;
+                    case 5:
+                        typeWriter("第五步：观察运动轨迹。绿色轨迹线显示了小球的实际运动路径，这是一条抛物线。水平位移x = v₀t，竖直位移y = h - ½gt²，轨迹方程为y = h - (g/2v₀²)x²。");
+                        break;
+                }
+            });
+        });
+
+        // 参数控制
+        document.getElementById('velocitySlider').addEventListener('input', function (e) {
+            initialVelocity = parseFloat(e.target.value);
+            document.getElementById('velocityValue').textContent = initialVelocity;
+        });
+
+        document.getElementById('heightSlider').addEventListener('input', function (e) {
+            platformHeight = parseFloat(e.target.value);
+            document.getElementById('heightValue').textContent = platformHeight;
+            resetSimulation();
+        });
+
+        // 拖拽功能
+        function makeDraggable(element) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            element.onmousedown = dragMouseDown;
+
+            function dragMouseDown(e) {
+                e = e || window.event;
+                e.preventDefault();
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+            }
+
+            function elementDrag(e) {
+                e = e || window.event;
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                element.style.top = (element.offsetTop - pos2) + "px";
+                element.style.left = (element.offsetLeft - pos1) + "px";
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+            }
+        }
+
+        // 全屏功能
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // 暂停功能
+        function togglePause() {
+            isPaused = !isPaused;
+            if (!isPaused) {
+                animate();
+            }
+        }
+
+        // 窗口大小调整
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // 初始化
+        initThree();
+        initCannon();
+        createPlatform();
+        createBall();
+        createTrajectoryLine();
+        animate();
+
+        makeDraggable(document.getElementById('stepPanel'));
+        makeDraggable(document.getElementById('paramPanel'));
+
+        // 初始提示
+        typeWriter("欢迎来到平抛运动3D交互场景！点击左侧步骤开始学习平抛运动的奥秘。");
+    </script>
+</body>
+
+</html>

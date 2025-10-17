@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>造物主 4.0plus | 场景生成</title>
+    <link rel="icon" href="logo.jpg" type="image/jpeg">
+    <meta name="description" content="造物主 4.0plus：AI 场景生成测试" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet" />
+    <style>
+        :root {
+            --bg-0: #0a0a0a;
+            --bg-1: #0f0f12;
+            --text-0: #ffffff;
+            --text-1: #cfd3dc;
+            --glass: rgba(255, 255, 255, 0.06);
+            --glass-strong: rgba(255, 255, 255, 0.12);
+            --line: rgba(255, 255, 255, 0.08);
+            --brand-acc: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            color: var(--text-0);
+            background: radial-gradient(1200px 800px at 80% -10%, #1b1e24 0%, var(--bg-1) 40%, var(--bg-0) 100%);
+            overflow-x: hidden;
+        }
+
+        /* 背景网格与细腻噪声 */
+        .bg-grid::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(var(--line) 1px, transparent 1px),
+                linear-gradient(90deg, var(--line) 1px, transparent 1px);
+            background-size: 40px 40px, 40px 40px;
+            mask-image: radial-gradient(80% 60% at 50% 20%, #000 60%, transparent 100%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .noise::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23n)" opacity="0.035"/></svg>') repeat;
+            mix-blend-mode: soft-light;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* 顶部导航 */
+        .nav {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            width: 100%;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.05));
+            border-bottom: 1px solid var(--line);
+        }
+
+        .nav-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 18px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            letter-spacing: .5px;
+        }
+
+        .brand-mark {
+            width: 36px;
+            height: 36px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.05));
+            border: 1px solid var(--line);
+            box-shadow: inset 0 0 24px rgba(255, 255, 255, 0.08), 0 8px 24px rgba(0, 0, 0, 0.5);
+        }
+
+        /* 保存文件提示框样式 */
+        .save-dialog-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .save-dialog-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .save-dialog {
+            background: var(--bg-1);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 16px;
+            padding: 24px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+
+        .save-dialog-overlay.visible .save-dialog {
+            transform: scale(1);
+        }
+
+        .save-dialog-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-0);
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .save-dialog-input-group {
+            margin-bottom: 20px;
+        }
+
+        .save-dialog-label {
+            display: block;
+            font-size: 0.875rem;
+            color: var(--text-1);
+            margin-bottom: 8px;
+        }
+
+        .save-dialog-input {
+            width: 100%;
+            padding: 12px;
+            background: var(--bg-0);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: var(--text-0);
+            font-size: 1rem;
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+        }
+
+        .save-dialog-input:focus {
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+        }
+
+        .save-dialog-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .save-dialog-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .save-dialog-cancel {
+            background: transparent;
+            color: var(--text-1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .save-dialog-cancel:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-0);
+        }
+
+        .save-dialog-confirm {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+            color: var(--text-0);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .save-dialog-confirm:hover {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.1) 100%);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        @media (max-width: 480px) {
+            .save-dialog {
+                padding: 20px;
+                margin: 0 16px;
+            }
+
+            .save-dialog-buttons {
+                flex-direction: column-reverse;
+            }
+
+            .save-dialog-button {
+                width: 100%;
+            }
+        }
+
+        .brand-name {
+            font-weight: 800;
+            font-size: 18px;
+            color: var(--brand-acc);
+        }
+
+        .brand-sub {
+            color: var(--text-1);
+            font-size: 12px;
+        }
+
+        /* 玻璃按钮 + 交互动画 */
+        .btn {
+            position: relative;
+            appearance: none;
+            border: 1px solid var(--line);
+            color: var(--text-0);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border-radius: 12px;
+            padding: 12px 18px;
+            font-weight: 600;
+            letter-spacing: .3px;
+            cursor: pointer;
+            overflow: hidden;
+            transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), inset 0 0 40px rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.18);
+        }
+
+        .btn:active {
+            transform: translateY(0) scale(0.98);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55) inset;
+        }
+
+        .btn .glow {
+            position: absolute;
+            inset: -1px;
+            border-radius: 12px;
+            pointer-events: none;
+            background: radial-gradient(500px 140px at var(--x, 50%) var(--y, 50%), rgba(255, 255, 255, 0.18), transparent 40%);
+            opacity: 0;
+            transition: opacity .2s ease;
+        }
+
+        .btn:hover .glow {
+            opacity: 1;
+        }
+
+        .btn-primary {
+            color: #111;
+            background: linear-gradient(180deg, #fff, #d9d9d9);
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 10px 30px rgba(255, 255, 255, 0.15), inset 0 0 30px rgba(255, 255, 255, 0.5);
+        }
+
+        /* 示例区域样式 */
+        .examples-section {
+            position: relative;
+            z-index: 1;
+            padding: 80px 0 120px;
+        }
+
+        .examples-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .examples-title {
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--brand-acc);
+            text-align: center;
+            margin-bottom: 12px;
+        }
+
+        .examples-subtitle {
+            font-size: 16px;
+            color: var(--text-1);
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .examples-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+        }
+
+        .example-card {
+            position: relative;
+            perspective: 1000px;
+        }
+
+        .example-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            background: linear-gradient(135deg, var(--glass-strong), var(--glass));
+            border: 1px solid var(--line);
+            border-radius: 20px;
+            padding: 30px;
+            transition: all 0.3s ease;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), inset 0 0 60px rgba(255, 255, 255, 0.03);
+            cursor: pointer;
+        }
+
+        .example-card:hover .example-card-inner {
+            transform: translateY(-10px);
+            box-shadow: 0 25px 70px rgba(0, 0, 0, 0.5), inset 0 0 80px rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .example-card-content {
+            margin-bottom: 30px;
+        }
+
+        .example-card-title {
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--text-0);
+            margin-bottom: 16px;
+        }
+
+        .example-card-desc {
+            font-size: 14px;
+            color: var(--text-1);
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .example-card-stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .stat-item {
+            font-size: 12px;
+            color: var(--text-1);
+            opacity: 0.8;
+        }
+
+        .example-card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-top: 1px solid var(--line);
+            padding-top: 20px;
+        }
+
+        .example-card-tag {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-1);
+            background: var(--glass);
+            padding: 6px 12px;
+            border-radius: 20px;
+            border: 1px solid var(--line);
+        }
+
+        .example-card-btn {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-0);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .example-card-btn:hover {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.1) 100%);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .examples-section {
+                padding: 60px 0 80px;
+            }
+
+            .examples-title {
+                font-size: 28px;
+            }
+
+            .examples-grid {
+                grid-template-columns: 1fr;
+                gap: 24px;
+            }
+
+            .example-card-inner {
+                padding: 24px;
+            }
+        }
+
+        /* 主内容区域 */
+        .main-content {
+            position: relative;
+            z-index: 1;
+            max-width: 800px;
+            margin: 100px auto;
+            padding: 0 20px;
+        }
+
+        /* 输入框容器 */
+        .input-container {
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            background: linear-gradient(180deg, var(--glass-strong), var(--glass));
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            padding: 32px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), inset 0 0 80px rgba(255, 255, 255, 0.04);
+        }
+
+        /* 标题样式 */
+        .input-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin: 0 0 24px 0;
+            text-align: center;
+            color: var(--brand-acc);
+        }
+
+        /* 输入框和按钮组合 */
+        .input-group {
+            display: flex;
+            gap: 12px;
+            align-items: stretch;
+        }
+
+        /* 输入框样式 */
+        .text-input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 14px 20px;
+            color: var(--text-0);
+            font-size: 16px;
+            transition: 0.2s ease;
+            font-family: inherit;
+        }
+
+        .text-input:focus {
+            border-color: rgba(255, 255, 255, 0.3);
+            outline: none;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .text-input::placeholder {
+            color: var(--text-1);
+            opacity: 0.7;
+        }
+
+        /* 发送按钮样式 */
+        .send-btn {
+            white-space: nowrap;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 640px) {
+            .main-content {
+                margin: 60px auto;
+            }
+
+            .input-container {
+                padding: 24px;
+            }
+
+            .input-group {
+                flex-direction: column;
+            }
+
+            .text-input {
+                width: 100%;
+            }
+        }
+
+        /* 加载动画样式 */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 10, 10, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .loading-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            padding: 40px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, var(--glass-strong), var(--glass));
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--line);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), inset 0 0 80px rgba(255, 255, 255, 0.04);
+        }
+
+        .loading-brand {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 10px;
+        }
+
+        .loading-brand .brand-mark {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.05));
+            border: 1px solid var(--line);
+            box-shadow: inset 0 0 24px rgba(255, 255, 255, 0.08), 0 8px 24px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .loading-brand .brand-text {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .loading-brand .brand-name {
+            font-weight: 800;
+            font-size: 24px;
+            color: var(--brand-acc);
+            margin-bottom: 4px;
+        }
+
+        .loading-brand .brand-sub {
+            color: var(--text-1);
+            font-size: 14px;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 3px solid var(--line);
+            border-top-color: var(--brand-acc);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-text {
+            color: var(--text-0);
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .loading-time {
+            color: var(--text-1);
+            font-size: 14px;
+            font-family: monospace;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 640px) {
+            .loading-container {
+                padding: 30px;
+                margin: 20px;
+            }
+
+            .loading-spinner {
+                width: 50px;
+                height: 50px;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-grid noise">
+    <header class="nav">
+        <div class="nav-inner">
+            <div class="brand">
+                <div class="brand-mark">
+                    <img src="logo.jpg" alt="Logo"
+                        style="width: 100%; height: 100%; border-radius: 12px; object-fit: cover;">
+                </div>
+
+                <!-- 保存文件提示框 -->
+                <div id="saveDialogOverlay" class="save-dialog-overlay">
+                    <div class="save-dialog">
+                        <div class="save-dialog-title">保存文件</div>
+                        <div class="save-dialog-input-group">
+                            <label for="fileNameInput" class="save-dialog-label">文件名</label>
+                            <input type="text" id="fileNameInput" class="save-dialog-input" placeholder="请输入文件名">
+                        </div>
+                        <div class="save-dialog-buttons">
+                            <button id="saveDialogCancel" class="save-dialog-button save-dialog-cancel">取消</button>
+                            <button id="saveDialogConfirm" class="save-dialog-button save-dialog-confirm">确认</button>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="brand-name">造物主 4.0plus</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="input-container">
+            <h1 class="input-title">造物主 4.0plus 场景生成（测试）</h1>
+            <div class="input-group">
+                <input type="text" class="text-input" placeholder="输入场景描述，例如：'平抛运动'" id="sceneInput">
+                <button class="btn btn-primary send-btn" id="sendButton">发送<span class="glow"></span></button>
+            </div>
+        </div>
+    </main>
+
+    <!-- 示例展示区域 -->
+    <section class="examples-section">
+        <div class="examples-container">
+            <h2 class="examples-title">精选示例</h2>
+            <p class="examples-subtitle">点击下方卡片体验我们的3D交互场景</p>
+
+            <div class="examples-grid">
+                <!-- 三体问题示例 -->
+                <div class="example-card" data-url="三体.html">
+                    <div class="example-card-inner">
+                        <div class="example-card-content">
+                            <h3 class="example-card-title">三体问题</h3>
+                            <p class="example-card-desc">探索三个天体在相互引力作用下的运动规律，观察混沌现象。</p>
+                            <div class="example-card-stats">
+                                <span class="stat-item">• 物理模拟</span>
+                                <span class="stat-item">• 混沌系统</span>
+                                <span class="stat-item">• 三体运动</span>
+                            </div>
+                        </div>
+                        <div class="example-card-footer">
+                            <span class="example-card-tag">物理</span>
+
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 太阳系示例 -->
+                <div class="example-card" data-url="太阳系.html">
+                    <div class="example-card-inner">
+                        <div class="example-card-content">
+                            <h3 class="example-card-title">太阳系八大行星</h3>
+                            <p class="example-card-desc">创建并观察太阳系八大行星围绕太阳运行的壮丽场景。</p>
+                            <div class="example-card-stats">
+                                <span class="stat-item">• 天文模拟</span>
+                                <span class="stat-item">• 行星运动</span>
+
+                            </div>
+                        </div>
+                        <div class="example-card-footer">
+                            <span class="example-card-tag">天文</span>
+
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 平抛运动示例 -->
+                <div class="example-card" data-url="p.html">
+                    <div class="example-card-inner">
+                        <div class="example-card-content">
+                            <h3 class="example-card-title">平抛运动</h3>
+                            <p class="example-card-desc">交互式学习平抛运动的物理原理，可调节初速度和高度。</p>
+                            <div class="example-card-stats">
+                                <span class="stat-item">• 力学模拟</span>
+                                <span class="stat-item">• 参数可调</span>
+                                <span class="stat-item">• 轨迹追踪</span>
+                            </div>
+                        </div>
+                        <div class="example-card-footer">
+                            <span class="example-card-tag">力学</span>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 加载动画容器 -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-container">
+            <div class="loading-brand">
+                <div class="brand-mark">
+                    <img src="logo.jpg" alt="Logo"
+                        style="width: 100%; height: 100%; border-radius: 12px; object-fit: cover;">
+                </div>
+                <div class="brand-text">
+                    <div class="brand-name">造物主 4.0plus</div>
+                    <div class="brand-sub">AI 场景生成测试</div>
+                </div>
+            </div>
+            <div class="loading-spinner"></div>
+            <div class="loading-text">正在创建场景...</div>
+            <div class="loading-time" id="loadingTime">0.00s</div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        // 按钮光标跟随光斑
+        document.querySelectorAll('.btn').forEach(function (button) {
+            button.addEventListener('pointermove', function (e) {
+                const rect = button.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                button.style.setProperty('--x', x + 'px');
+                button.style.setProperty('--y', y + 'px');
+            });
+        });
+
+
+
+
+
+
+
+        // 发送按钮点击事件
+        document.getElementById('sendButton').addEventListener('click', function () {
+            const input = document.getElementById('sceneInput').value.trim();
+            if (input) {
+                console.log('发送场景描述:', input);
+                function sendCoze(messages) {
+                    const apiAccessToken = "pat_kBBXb5DHqGz1qJDrM95GBzXSt9pZMlZ6UCeqeLaeMraZSM4r1QfuKPlpMVgursV6";
+                    const chatBotId = "7561795842567356450";  // 机器人 ID，用于区分不同的聊天机器人
+
+                    const url = "https://api.coze.cn/open_api/v2/chat";
+                    const headers = {
+                        "Authorization": `Bearer ${apiAccessToken}`,
+                        "Content-Type": "application/json"
+                    };
+
+                    const payload = {
+                        "bot_id": chatBotId,
+                        "user": "123123123", // user可随意修改
+                        "query": messages,
+                        "stream": false
+                    };
+
+                    return axios.post(url, payload, { headers })
+                        .then(response => {
+                            const responseData = response.data;
+
+                            const messages = responseData.messages || [];
+                            for (const message of messages) {
+                                const messageContent = message.content || '';
+                                if (!messageContent.startsWith("{") && !messageContent.startsWith("RPCError")) {
+                                    console.log(`coze answer: ${messageContent}`);
+
+                                    return messageContent;
+                                }
+                            }
+                            return '';
+                        })
+                        .catch(error => {
+                            console.error('Request failed:', error);
+                            throw error;
+                        });
+                }
+                sendMessage()
+                // 发送消息的函数
+                function sendMessage() {
+                    const inputElement = document.getElementById('sceneInput');
+                    const messages = inputElement.value;
+                    showLoading();  // 显示加载动画
+                    sendCoze(messages)
+                        .then(response => {
+                            hideLoading();  // 隐藏加载动画
+                            // 处理返回值
+                            const codeContent = response;
+
+                            showSaveDialog(function (fileName) {
+                                console.log('用户确认的文件名:', fileName);
+                                // 这里可以添加保存逻辑，比如调用之前的downloadHTML函数
+                                downloadHTML(codeContent, fileName);
+                            });
+
+                            // 带默认文件名的调用
+                            showSaveDialog(function (fileName) {
+                                // 处理保存逻辑
+                            }, 'default_scene');
+
+                            //返回成功
+
+                        })
+                        .catch(error => {
+                            //返回失败
+                        });
+                }
+
+
+
+                // 这里可以添加后续处理逻辑，比如发送请求到服务器等
+                alert('场景描述已发送: ' + input);
+            } else {
+                alert('请输入场景描述');
+            }
+        });
+
+
+
+
+
+
+
+        /* 加载动画控制函数 */
+        let loadingStartTime = null;
+        let loadingInterval = null;
+
+        /**
+         * 显示加载动画
+         * @returns {void}
+         */
+        function showLoading() {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            loadingOverlay.classList.add('visible');
+
+            // 记录开始时间
+            loadingStartTime = new Date().getTime();
+
+            // 更新显示时间
+            loadingInterval = setInterval(() => {
+                const currentTime = new Date().getTime();
+                const elapsedTime = (currentTime - loadingStartTime) / 1000;
+                document.getElementById('loadingTime').textContent = elapsedTime.toFixed(2) + 's';
+            }, 100);
+        }
+
+        /**
+         * 隐藏加载动画
+         * @returns {number} 总共加载时间（秒）
+         */
+        function hideLoading() {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            loadingOverlay.classList.remove('visible');
+
+            // 清除计时器
+            if (loadingInterval) {
+                clearInterval(loadingInterval);
+                loadingInterval = null;
+            }
+
+            // 计算总加载时间
+            if (loadingStartTime) {
+                const totalTime = (new Date().getTime() - loadingStartTime) / 1000;
+                loadingStartTime = null;
+                console.log(`加载完成，总用时: ${totalTime.toFixed(2)}秒`);
+                return totalTime;
+            }
+            return 0;
+        }
+
+        // 确保加载动画默认是隐藏的
+        document.addEventListener('DOMContentLoaded', () => {
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            loadingOverlay.classList.remove('visible');
+        });
+
+        /**
+         * 下载代码为HTML文件
+         * @param {string} codeText - 要保存的HTML代码文本
+         * @param {string} name - 文件名称（不包括扩展名）
+         * @returns {void}
+         */
+        function downloadHTML(codeText, name) {
+            // 创建Blob对象
+            const blob = new Blob([codeText], { type: 'text/html;charset=utf-8' });
+
+            // 创建临时URL
+            const url = URL.createObjectURL(blob);
+
+            // 创建下载链接
+            const a = document.createElement('a');
+            a.href = url;
+
+            // 设置文件名，如果没有提供扩展名则添加.html
+            const fileName = name.endsWith('.html') ? name : name + '.html';
+            a.download = fileName;
+
+            // 隐藏链接
+            a.style.display = 'none';
+
+            // 添加到DOM
+            document.body.appendChild(a);
+
+            // 触发下载
+            a.click();
+
+            // 清理
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }, 100);
+
+            console.log(`文件 "${fileName}" 已开始下载`);
+        }
+
+        /**
+         * 显示保存文件对话框
+         * @param {function} confirmCallback - 确认按钮触发的回调函数，接收文件名作为参数
+         * @param {string} defaultFileName - 可选，默认文件名
+         * @returns {void}
+         */
+        function showSaveDialog(confirmCallback, defaultFileName = '') {
+            const overlay = document.getElementById('saveDialogOverlay');
+            const input = document.getElementById('fileNameInput');
+            const confirmBtn = document.getElementById('saveDialogConfirm');
+            const cancelBtn = document.getElementById('saveDialogCancel');
+
+            // 设置默认文件名
+            if (defaultFileName) {
+                input.value = defaultFileName;
+            } else {
+                input.value = '';
+            }
+
+            // 显示对话框
+            overlay.classList.add('visible');
+
+            // 自动聚焦输入框
+            setTimeout(() => {
+                input.focus();
+                if (defaultFileName) {
+                    input.select();
+                }
+            }, 100);
+
+            // 确认按钮点击事件
+            const handleConfirm = () => {
+                const fileName = input.value.trim();
+                if (fileName && typeof confirmCallback === 'function') {
+                    // 调用回调函数，传入文件名
+                    confirmCallback(fileName);
+                }
+                // 无论如何都关闭对话框
+                hideSaveDialog();
+            };
+
+            // 取消按钮点击事件
+            const handleCancel = () => {
+                hideSaveDialog();
+            };
+
+            // 输入框回车事件
+            const handleKeyPress = (e) => {
+                if (e.key === 'Enter') {
+                    handleConfirm();
+                }
+            };
+
+            // 点击遮罩层关闭
+            const handleOverlayClick = (e) => {
+                if (e.target === overlay) {
+                    hideSaveDialog();
+                }
+            };
+
+            // 添加事件监听器
+            confirmBtn.addEventListener('click', handleConfirm);
+            cancelBtn.addEventListener('click', handleCancel);
+            input.addEventListener('keypress', handleKeyPress);
+            overlay.addEventListener('click', handleOverlayClick);
+
+            // 隐藏对话框函数
+            function hideSaveDialog() {
+                overlay.classList.remove('visible');
+
+                // 移除事件监听器，避免内存泄漏
+                confirmBtn.removeEventListener('click', handleConfirm);
+                cancelBtn.removeEventListener('click', handleCancel);
+                input.removeEventListener('keypress', handleKeyPress);
+                overlay.removeEventListener('click', handleOverlayClick);
+            }
+        }
+
+        // 将函数暴露到全局，方便控制台调用
+        window.showLoading = showLoading;
+        window.hideLoading = hideLoading;
+        window.downloadHTML = downloadHTML;
+        window.showSaveDialog = showSaveDialog;
+
+        // 按下回车键也可以发送
+        document.getElementById('sceneInput').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                document.getElementById('sendButton').click();
+            }
+        });
+
+        // 示例卡片点击事件
+        document.querySelectorAll('.example-card').forEach(card => {
+            card.addEventListener('click', function (e) {
+                // 如果点击的是按钮，也触发相同的逻辑
+                const url = this.dataset.url;
+
+                // 显示确认对话框
+                if (confirm('确定要打开示例：' + this.querySelector('.example-card-title').textContent + ' 吗？')) {
+                    // 跳转到对应的页面
+                    window.location.href = url;
+                }
+            });
+        });
+
+        // 确保按钮点击不会冒泡导致重复触发
+        document.querySelectorAll('.example-card-btn').forEach(btn => {
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+            });
+        });
+    </script>
+</body>
+
+</html>

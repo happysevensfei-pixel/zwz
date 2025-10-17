@@ -1,4 +1,4 @@
-var ground = Matter.Bodies.rectangle(100, (window.innerHeight / 2) + 300, 4000, 20, {
+var ground = Matter.Bodies.rectangle(100, (window.innerHeight / 2) + 300, 10000, 20, {
     restitution: 1,
     //静止
     isStatic: true,

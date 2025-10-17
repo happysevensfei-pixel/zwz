@@ -31,10 +31,33 @@ Matter.Events.on(render, 'afterRender', function () {
         context.lineJoin = 'round';
         context.beginPath();
         context.moveTo(positionX, positionY);
-        context.lineTo(positionX + velocityX * 10, positionY);
+        const endX1 = positionX + velocityX * 10;
+        const endY1 = positionY;
+        context.lineTo(endX1, endY1);
         context.stroke();
         context.closePath();
         context.fill();
+        // 绘制箭头头部（水平向量）
+        (function drawArrowheadHx(sx, sy, ex, ey, color) {
+            const dx = ex - sx;
+            const dy = ey - sy;
+            const angle = Math.atan2(dy, dx);
+            const len = 8; // 箭头长度
+            const spread = Math.PI / 7; // 箭头张角
+            const bx1 = ex - len * Math.cos(angle - spread);
+            const by1 = ey - len * Math.sin(angle - spread);
+            const bx2 = ex - len * Math.cos(angle + spread);
+            const by2 = ey - len * Math.sin(angle + spread);
+            // 用两条线绘制三角形轮廓（从端点到两侧基点）
+            context.beginPath();
+            context.strokeStyle = color || context.strokeStyle;
+            context.lineWidth = Math.max(1, (context.lineWidth || 2));
+            context.moveTo(ex, ey);
+            context.lineTo(bx1, by1);
+            context.moveTo(ex, ey);
+            context.lineTo(bx2, by2);
+            context.stroke();
+        })(positionX, positionY, endX1, endY1, context.fillStyle);
         context.restore();
         context.save();
 
@@ -51,10 +74,32 @@ Matter.Events.on(render, 'afterRender', function () {
         context.lineJoin = 'round';
         context.beginPath();
         context.moveTo(positionX, positionY);
-        context.lineTo(positionX, positionY + velocityY * 10);
+        const endX2 = positionX;
+        const endY2 = positionY + velocityY * 10;
+        context.lineTo(endX2, endY2);
         context.stroke();
         context.closePath();
         context.fill();
+        // 绘制箭头头部（竖直向量）
+        (function drawArrowheadVx(sx, sy, ex, ey, color) {
+            const dx = ex - sx;
+            const dy = ey - sy;
+            const angle = Math.atan2(dy, dx);
+            const len = 8;
+            const spread = Math.PI / 7;
+            const bx1 = ex - len * Math.cos(angle - spread);
+            const by1 = ey - len * Math.sin(angle - spread);
+            const bx2 = ex - len * Math.cos(angle + spread);
+            const by2 = ey - len * Math.sin(angle + spread);
+            context.beginPath();
+            context.strokeStyle = color || context.strokeStyle;
+            context.lineWidth = Math.max(1, (context.lineWidth || 2));
+            context.moveTo(ex, ey);
+            context.lineTo(bx1, by1);
+            context.moveTo(ex, ey);
+            context.lineTo(bx2, by2);
+            context.stroke();
+        })(positionX, positionY, endX2, endY2, context.fillStyle);
         context.restore();
         context.save();
     }
@@ -71,6 +116,11 @@ var mode = NaN;//动态矢量
 6：连接
 7：更多*/
 
+var vx = 0;
+var vy = 0;
+var fx = 0;
+var fy = 0;
+
 var content = [];
 var dd = false;
 var needsetbody = [];//需要设置速度的物体
@@ -84,6 +134,14 @@ mouseConstraint.mouse.element.addEventListener("mousedown", function (event) {
         var body = Matter.Query.point(Composite.allBodies(world), mousePosition)[0];
         if (body) {
             needsetbody.push(body);
+            window.canvasImageList.addItem(body.render.strokeStyle, `物体${needsetbody.length}`, (e, info) => {
+                vx = setid[needsetbody.length - 1].hSpeed;
+                vy = setid[needsetbody.length - 1].vSpeed;
+                fx = setid[needsetbody.length - 1].hForce;
+                fy = setid[needsetbody.length - 1].vForce;
+                console.log('点击了', info);
+            });
+
             speedForcePanel.show();
 
         }
@@ -449,3 +507,7 @@ function SetForceY(body, forceY, time) {
         }, 100);
     }
 }
+
+
+
+//添加列表项

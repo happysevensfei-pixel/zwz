@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>造物主 4.0 内测</title>
-    <link rel="icon" href="/zwz/logo.jpg" type="image/jpeg">
+    <link rel="icon" href="logo.jpg" type="image/jpeg">
     <style>
         html,
         body {
@@ -98,6 +98,139 @@
             display: flex;
             opacity: 1;
             transform: translate(-50%, -50%) scale(1);
+        }
+        
+        /* 模态框样式 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .modal-content {
+            background: #1a1a1a;
+            padding: 40px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            min-width: 300px;
+        }
+        
+        .3d-modal {
+            transform-style: preserve-3d;
+            animation: modalEnter 0.6s ease-out;
+        }
+        
+        @keyframes modalEnter {
+            from {
+                transform: perspective(1000px) rotateX(-90deg) translateY(-50px);
+                opacity: 0;
+            }
+            to {
+                transform: perspective(1000px) rotateX(0) translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .modal-content h3 {
+            color: #ffffff;
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 24px;
+        }
+        
+        .code-input {
+            width: 100%;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #ffffff;
+            font-size: 18px;
+            text-align: center;
+            margin-bottom: 25px;
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+        }
+        
+        .code-input:focus {
+            outline: none;
+            border-color: #4CAF50;
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.3);
+        }
+        
+        .modal-buttons {
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+        }
+        
+        .modal-btn {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .modal-btn.cancel {
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .modal-btn.cancel:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+        
+        .modal-btn.submit {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: #ffffff;
+        }
+        
+        .modal-btn.submit:hover {
+            background: linear-gradient(135deg, #45a049, #3d8b40);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(76, 175, 80, 0.3);
+        }
+        
+        /* 三维按钮样式 */
+        .3d-button {
+            position: relative;
+            transform-style: preserve-3d;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, #673AB7, #9C27B0);
+            transform: perspective(1000px) rotateX(5deg) rotateY(5deg);
+        }
+        
+        .3d-button:hover {
+            transform: perspective(1000px) rotateX(0) rotateY(0) translateY(-5px);
+            box-shadow: 0 15px 30px rgba(103, 58, 183, 0.4);
+        }
+        
+        .3d-button:active {
+            transform: perspective(1000px) rotateX(0) rotateY(0) translateY(0);
+        }
         }
 
         /* 悬浮窗标题 - 更简洁 */
@@ -378,6 +511,53 @@
                     rgba(255, 255, 255, 0.15));
             border-color: #ffffff;
             box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+        }
+
+        /* AI介绍框样式 */
+        .ai-description {
+            position: fixed;
+            width: 200px;
+            padding: 12px 16px;
+            background: linear-gradient(135deg,
+                    rgba(0, 0, 0, 0.9),
+                    rgba(30, 30, 30, 0.8));
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 12px;
+            line-height: 1.4;
+            text-align: left;
+            display: none;
+            z-index: 99999;
+            pointer-events: none;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        /* 小箭头 */
+        .ai-description::after {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 8px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* 确保.ai-option有相对定位 */
+        .ai-option {
+            position: relative;
+        }
+
+        /* 确保.ai-selector不裁剪子元素 */
+        .ai-selector {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            position: relative;
         }
 
         /* 对话框区域 */
@@ -1300,6 +1480,41 @@
             transform: scale(1.1);
         }
 
+        /* 新增：将工具按钮和关闭按钮水平排列在一起 */
+        .canvas-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .canvas-tools {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        /* Canvas 图像列表内条目样式 */
+        .canvas-image-item {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            padding: 6px 8px;
+            border-radius: 8px;
+        }
+
+        .canvas-image-item div {
+            user-select: none;
+        }
+
+        .canvas-image-item+.canvas-image-item {
+            margin-top: 6px;
+        }
+
+        .canvas-image-empty {
+            color: rgba(255, 255, 255, 0.6);
+            text-align: center;
+            padding: 12px 6px;
+        }
+
         /* Canvas画布 */
         .physics-canvas {
             flex: 1;
@@ -1770,9 +1985,28 @@
 
     <!-- 需要先在<head>中添加Material Icons字体 -->
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    
+
+
+    <!-- 邀请码验证模态框 -->
+    <div id="invitation-modal" class="modal-overlay">
+        <div class="modal-content 3d-modal">
+            <h3>请输入邀请码</h3>
+            <input type="text" id="invitation-code" placeholder="输入邀请码" class="code-input">
+            <div class="modal-buttons">
+                <button id="cancel-code" class="modal-btn cancel">取消</button>
+                <button id="submit-code" class="modal-btn submit">提交</button>
+            </div>
+        </div>
+    </div>
 
     <!-- 右下角功能按钮 -->
     <div id="function-buttons">
+        <!-- 三维邀请码按钮 -->
+        <button class="fab-button 3d-button" id="invitationButton">
+            <span class="material-icons">lock</span>
+        </button>
+        
         <button class="fab-button" id="toolsButton">
             <span class="material-icons">build</span>
         </button>
@@ -1845,6 +2079,13 @@
         </div>
     </div>
 
+    <!-- AI介绍框（放在AI面板外部，避免被限制） -->
+    <div class="ai-description" id="niuxiaodun-desc">
+        专注于物理知识点的解答 按照教材原文进行分步式启发回答。
+    </div>
+    <div class="ai-description" id="qiqiboshi-desc">
+        物理生成场景 上传照片一键生成解题场景 步骤式交互教学解题模式 一步步动手操作认识物理学原理
+    </div>
 
     <!-- 对话警示框 -->
     <div class="alert-dialog" id="alertDialog">
@@ -1966,7 +2207,17 @@
     <div class="canvas-container left" id="leftCanvasContainer">
         <div class="canvas-header">
             <span class="canvas-title">水平速度-时间图像</span>
-            <button class="canvas-close-btn" onclick="canvasPanelManager.hidePanels()">×</button>
+            <div class="canvas-controls">
+                <div class="canvas-tools">
+                    <button class="canvas-close-btn" id="chooseFrameBtnLeft" title="选择参考系" data-side="left">
+                        <span class="material-icons" style="font-size:14px;">share</span>
+                    </button>
+                    <button class="canvas-close-btn" id="drawPlotBtnLeft" title="绘制图像" data-side="left">
+                        <span class="material-icons" style="font-size:14px;">image</span>
+                    </button>
+                </div>
+                <button class="canvas-close-btn" onclick="canvasPanelManager.hidePanels()">×</button>
+            </div>
         </div>
         <canvas id="leftCanvas" class="physics-canvas"></canvas>
     </div>
@@ -1974,7 +2225,17 @@
     <div class="canvas-container right" id="rightCanvasContainer">
         <div class="canvas-header">
             <span class="canvas-title">竖直速度-时间图像</span>
-            <button class="canvas-close-btn" onclick="canvasPanelManager.hidePanels()">×</button>
+            <div class="canvas-controls">
+                <div class="canvas-tools">
+                    <button class="canvas-close-btn" id="chooseFrameBtnRight" title="选择参考系" data-side="right">
+                        <span class="material-icons" style="font-size:14px;">share</span>
+                    </button>
+                    <button class="canvas-close-btn" id="drawPlotBtnRight" title="绘制图像" data-side="right">
+                        <span class="material-icons" style="font-size:14px;">image</span>
+                    </button>
+                </div>
+                <button class="canvas-close-btn" onclick="canvasPanelManager.hidePanels()">×</button>
+            </div>
         </div>
         <canvas id="rightCanvas" class="physics-canvas"></canvas>
     </div>
@@ -2201,6 +2462,23 @@
         </div>
     </div>
 
+    <!-- Canvas 图片列表面板（起始为空，样式与界面一致） -->
+    <div class="floating-window" id="canvasImageListPanel" style="width:360px; min-height:120px; display:none;">
+        <div class="drag-handle"></div>
+        <button class="close-button" id="canvasImageListCloseBtn">×</button>
+        <div class="floating-window-title">画布图像列表</div>
+        <div class="param-group">
+            <div id="canvasImageListContent"
+                style="display:flex;flex-direction:column;gap:8px;min-height:80px;padding:8px 4px;">
+                <div class="empty-state" id="canvasImageListEmpty"
+                    style="color:rgba(255,255,255,0.7);text-align:center;padding:12px;">没有物体</div>
+            </div>
+        </div>
+        <div class="dialog-footer">
+            <button class="dialog-btn cancel" id="canvasImageListCloseFooter">关闭</button>
+        </div>
+    </div>
+
     <!-- 文件命名对话框 -->
     <div class="floating-window" id="fileNameDialog">
         <div class="drag-handle"></div>
@@ -2265,12 +2543,12 @@
     </script>
 
 
-    <script src="/zwz/matter.min.js"></script>
-    <script src="/zwz/matter-wrap.js"></script>
-    <script src="/zwz/function.js"></script>
-    <script src="/zwz/enginer.js"></script>
-    <script src="/zwz/demo.js"></script>
-    <script src="/zwz/var.js"></script>
+    <script src="matter.min.js"></script>
+    <script src="matter-wrap.js"></script>
+    <script src="function.js"></script>
+    <script src="enginer.js"></script>
+    <script src="demo.js"></script>
+    <script src="var.js"></script>
 
     <script>
         Matter.use(
@@ -2352,7 +2630,7 @@
                 const bodies = Matter.Composite.allBodies(world);
                 const constraints = Matter.Composite.allConstraints(world);
                 const lines = [];
-                
+
                 lines.push('// 场景代码 - 包含物体和约束');
                 lines.push('const createdBodies = new Map();');
                 lines.push('// 错误处理函数');
@@ -2364,7 +2642,7 @@
                 lines.push('    return null;');
                 lines.push('  }');
                 lines.push('}');
-                
+
                 bodies.forEach((b) => {
                     const opt = {
                         isStatic: !!b.isStatic,
@@ -2393,14 +2671,14 @@
                         lines.push(`});`);
                     }
                 });
-                
+
                 constraints.forEach((c, index) => {
                     lines.push(`handleError('创建约束 #${index}', function() {`);
                     lines.push(`  // 确保两个物体都存在`);
                     lines.push(`  const bodyA = ${c.bodyA ? `createdBodies.get('${c.bodyA.id}')` : 'null'};`);
                     lines.push(`  const bodyB = ${c.bodyB ? `createdBodies.get('${c.bodyB.id}')` : 'null'};`);
                     lines.push(`  if (bodyA === undefined || bodyB === undefined) return null;`);
-                    
+
                     const arr = [];
                     if (c.bodyA) arr.push(`bodyA: bodyA`);
                     if (c.bodyB) arr.push(`bodyB: bodyB`);
@@ -2420,7 +2698,7 @@
                     lines.push(`  return cons;`);
                     lines.push(`});`);
                 });
-                
+
                 return lines.join('\n');
             }
 
@@ -3265,6 +3543,37 @@
                     this.isAnimating = false;
                 }, 200);
             }
+
+            // 切换参考系（占位实现：示例为切换坐标轴显示）
+            chooseReferenceFrame(side) {
+                console.log('chooseReferenceFrame called for', side);
+                const st = this.state[side];
+                if (!st) return;
+                st.axesVisible = !st.axesVisible;
+                this.redraw(side);
+            }
+
+            // 将画布导出为图片或在新窗口展示（占位实现）
+            drawImage(side) {
+                console.log('drawImage called for', side);
+                const canvas = side === 'left' ? this.leftCanvas : this.rightCanvas;
+                if (!canvas) return;
+                try {
+                    const dataUrl = canvas.toDataURL('image/png');
+                    const win = window.open();
+                    if (win) {
+                        win.document.write('<img src="' + dataUrl + '" alt="canvas image">');
+                    } else {
+                        // 若被阻止，触发下载
+                        const a = document.createElement('a');
+                        a.href = dataUrl;
+                        a.download = side + '-canvas.png';
+                        a.click();
+                    }
+                } catch (err) {
+                    console.error('导出画布失败', err);
+                }
+            }
         }
 
         // 初始化画板管理器
@@ -3287,6 +3596,97 @@
 
         // 将AI面板管理器暴露到全局
         window.aiPanel = aiPanel;
+
+        // Canvas 图像列表管理器（用于两个画布的图像按钮，初始为空）
+        const canvasImageList = (function () {
+            const panel = document.getElementById('canvasImageListPanel');
+            const content = document.getElementById('canvasImageListContent');
+            const empty = document.getElementById('canvasImageListEmpty');
+
+            function open() {
+                panel.classList.add('show');
+                panel.style.display = '';
+            }
+
+            function close() {
+                panel.classList.remove('show');
+                // 保持 display none 等动画结束后隐藏
+                setTimeout(() => panel.style.display = 'none', 300);
+            }
+
+            function toggle() {
+                if (panel.classList.contains('show')) close(); else open();
+            }
+
+            function clearEmptyIfNeeded() {
+                if (content.querySelectorAll('.canvas-image-item').length > 0) {
+                    empty.style.display = 'none';
+                } else {
+                    empty.style.display = '';
+                }
+            }
+
+            function addItem(color, text, onClick) {
+                // 创建条目 DOM
+                const item = document.createElement('div');
+                item.className = 'canvas-image-item';
+                item.style.display = 'flex';
+                item.style.alignItems = 'center';
+                item.style.gap = '10px';
+                item.style.padding = '6px 8px';
+                item.style.borderRadius = '8px';
+                item.style.cursor = 'pointer';
+                item.style.transition = 'background 0.2s';
+                item.onmouseenter = () => item.style.background = 'rgba(255,255,255,0.03)';
+                item.onmouseleave = () => item.style.background = 'transparent';
+
+                const circle = document.createElement('div');
+                circle.style.width = '18px';
+                circle.style.height = '18px';
+                circle.style.borderRadius = '50%';
+                circle.style.background = color || '#ffffff';
+                circle.style.boxShadow = '0 1px 3px rgba(0,0,0,0.4)';
+
+                const label = document.createElement('div');
+                label.textContent = text || '';
+                label.style.color = 'rgba(255,255,255,0.9)';
+                label.style.fontSize = '13px';
+                label.style.flex = '1';
+
+                item.appendChild(circle);
+                item.appendChild(label);
+
+                if (typeof onClick === 'function') {
+                    item.addEventListener('click', (e) => onClick(e, { color, text }));
+                }
+
+                content.appendChild(item);
+                clearEmptyIfNeeded();
+                return item;
+            }
+
+            // 绑定关闭按钮
+            const closeBtn = document.getElementById('canvasImageListCloseBtn');
+            if (closeBtn) closeBtn.addEventListener('click', close);
+            const closeFooter = document.getElementById('canvasImageListCloseFooter');
+            if (closeFooter) closeFooter.addEventListener('click', close);
+
+            return {
+                open,
+                close,
+                toggle,
+                addItem
+            };
+        })();
+
+        // 暴露到全局，供外部使用
+        window.canvasImageList = canvasImageList;
+
+        // 绑定两个图像按钮，统一打开列表面板
+        const btnLeft = document.getElementById('drawPlotBtnLeft');
+        const btnRight = document.getElementById('drawPlotBtnRight');
+        if (btnLeft) btnLeft.addEventListener('click', () => canvasImageList.open());
+        if (btnRight) btnRight.addEventListener('click', () => canvasImageList.open());
         /*变量声明区*/
 
         var timeline = false;
@@ -3396,7 +3796,7 @@
                 text: '添加拓展',
                 icon: 'more_horiz',
                 onClick: () => {
-                     window.alertDialog.alert('关闭', '您可以在屏幕中间的导入按钮里面来导入下载好的拓展', 2000);
+                    window.alertDialog.alert('关闭', '您可以在屏幕中间的导入按钮里面来导入下载好的拓展', 2000);
                 }
             }
         ]);
@@ -4871,10 +5271,10 @@
                 for (let i = 0; i < needsetbody.length; i++) {
                     const body = needsetbody[i];
                     const params = setid[i];
-                    SetVelocityX(body, params.hSpeed, params.hSpeedTime);
-                    SetVelocityY(body, params.vSpeed, params.vSpeedTime);
-                    SetForceX(body, params.hForce, params.hForceTime);
-                    SetForceY(body, params.vForce, params.vForceTime);
+                    SetVelocityX(body, params.hSpeed - vx, params.hSpeedTime);
+                    SetVelocityY(body, params.vSpeed - vy, params.vSpeedTime);
+                    SetForceX(body, params.hForce - fx, params.hForceTime);
+                    SetForceY(body, params.vForce - fy, params.vForceTime);
 
                     let t = 0;
                     const intervalId = setInterval(function () {
@@ -5131,7 +5531,7 @@
                     lines.push(`    const bodyA = ${c.bodyA ? `createdBodies.get('${c.bodyA.id}')` : 'null'};`);
                     lines.push(`    const bodyB = ${c.bodyB ? `createdBodies.get('${c.bodyB.id}')` : 'null'};`);
                     lines.push(`    if (bodyA === undefined || bodyB === undefined) return null;`);
-                    
+
                     const arr = [];
                     if (c.bodyA) arr.push(`bodyA: bodyA`);
                     if (c.bodyB) arr.push(`bodyB: bodyB`);
@@ -5411,16 +5811,123 @@
 
         })();
 
-
+        window.canvasImageList.addItem('#ff0000', '红色球', (e, info) => { console.log('点击了', info); });
 
 
         window.alertDialog.success('感谢您的使用--造物主内测版本', '欢迎', 5000);
     </script>
-    <script src="/zwz/function.js"></script>
-    <script src="/zwz/show.js"></script>
+    <script src="function.js"></script>
+    <script src="show.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <script src="/zwz/additem.js"></script>
-
-</body>
-
+    <script src="additem.js"></script>
+    
+    <!-- AI助手悬停介绍功能 -->
+    <script>
+        // 等待DOM加载完成
+        document.addEventListener('DOMContentLoaded', function() {
+            // 获取AI选项和介绍框元素
+            const niuxiaodunOption = document.querySelector('.ai-option[data-ai="niuxiaodun"]');
+            const qiqiboshiOption = document.querySelector('.ai-option[data-ai="qiqiboshi"]');
+            const niuxiaodunDesc = document.getElementById('niuxiaodun-desc');
+            const qiqiboshiDesc = document.getElementById('qiqiboshi-desc');
+            // 显示介绍框的函数
+            function showDescription(optionElement, descElement) {
+                if (!optionElement || !descElement) return;
+                
+                const rect = optionElement.getBoundingClientRect();
+                
+                // 计算介绍框的位置（在选项下方）
+                const left = rect.left + rect.width / 2 - 100; // 100是介绍框宽度的一半
+                const top = rect.bottom + 8; // 8px的间距
+                
+                // 设置介绍框位置并显示
+                descElement.style.left = left + 'px';
+                descElement.style.top = top + 'px';
+                descElement.style.display = 'block';
+            }
+            
+            // 隐藏所有介绍框的函数
+            function hideAllDescriptions() {
+                if (niuxiaodunDesc) niuxiaodunDesc.style.display = 'none';
+                if (qiqiboshiDesc) qiqiboshiDesc.style.display = 'none';
+            }
+            
+            // 为牛小顿选项添加鼠标事件
+            if (niuxiaodunOption && niuxiaodunDesc) {
+                niuxiaodunOption.addEventListener('mouseenter', function() {
+                    showDescription(niuxiaodunOption, niuxiaodunDesc);
+                });
+                niuxiaodunOption.addEventListener('mouseleave', function() {
+                    hideAllDescriptions();
+                });
+            }
+            
+            // 为七七博士选项添加鼠标事件
+            if (qiqiboshiOption && qiqiboshiDesc) {
+                qiqiboshiOption.addEventListener('mouseenter', function() {
+                    showDescription(qiqiboshiOption, qiqiboshiDesc);
+                });
+                qiqiboshiOption.addEventListener('mouseleave', function() {
+                    hideAllDescriptions();
+                });
+            }
+        });
+    </script>
+<script>
+        // 简单的邀请码验证功能
+        (function() {
+            var modal = document.getElementById('invitation-modal');
+            var btn = document.getElementById('invitationButton');
+            var cancel = document.getElementById('cancel-code');
+            var submit = document.getElementById('submit-code');
+            var input = document.getElementById('invitation-code');
+            
+            // 检查必要元素
+            if (!modal || !btn) return;
+            
+            // 按钮点击事件
+            btn.onclick = function() {
+                modal.classList.add('active');
+                if (input) {
+                    setTimeout(function() { input.focus(); }, 100);
+                }
+            };
+            
+            // 关闭模态框
+            function closeModal() {
+                modal.classList.remove('active');
+                if (input) input.value = '';
+            }
+            
+            // 绑定事件
+            if (cancel) cancel.onclick = closeModal;
+            
+            if (submit) {
+                submit.onclick = function() {
+                    if (input && input.value.trim().toUpperCase() === 'QWER') {
+                        window.location.href = 'zwz3d.html';
+                    } else {
+                        alert('邀请码错误，请重新输入！');
+                        if (input) {
+                            input.value = '';
+                            input.focus();
+                        }
+                    }
+                };
+            }
+            
+            // 点击外部关闭
+            modal.onclick = function(e) {
+                if (e.target === modal) closeModal();
+            };
+            
+            // 回车键提交
+            if (input && submit) {
+                input.onkeypress = function(e) {
+                    if (e.key === 'Enter') submit.onclick();
+                };
+            }
+        })();
+    </script>
+    </body>
 </html>
